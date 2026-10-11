@@ -34,6 +34,34 @@ export interface QuestionResponse {
   highlight_edges: string[];
   confidence: number;
   mode: 'live' | 'demo';
+  direct_answer?: string;
+  summary_stats?: {
+    total_delay_days: number;
+    critical_blockers: number;
+    blocked_tasks_count: number;
+    pending_decisions_count: number;
+    supporting_docs_count: number;
+  };
+  causal_chain?: Array<{
+    id: string;
+    title: string;
+    label: string;
+    rel?: string;
+  }>;
+  blockers?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    delay_days: number;
+    owner: string;
+    owner_role: string;
+    reason: string;
+    decision?: string | null;
+    decision_owner?: string | null;
+    docs: string[];
+  }>;
+  missing_facts?: string[];
 }
 
 export interface GraphSchema {

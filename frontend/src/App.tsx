@@ -6,13 +6,16 @@ import {
   askQuestion,
   seedDatabase
 } from './services/api';
-import { AppConfig, GraphSchema, GraphNode, GraphEdge, QuestionResponse, EvidenceItem } from './types';
+import type { AppConfig, GraphSchema, GraphNode, GraphEdge, QuestionResponse, EvidenceItem } from './types';
 import { Sidebar } from './components/Sidebar';
 import { BrainChat } from './components/BrainChat';
 import { GraphCanvas } from './components/GraphCanvas';
 import { NodeInspector } from './components/NodeInspector';
 import { ConnectionModal } from './components/ConnectionModal';
 import { CypherModal } from './components/CypherModal';
+import { Columns2, LayoutPanelLeft, Maximize2 } from 'lucide-react';
+
+export type WorkspaceLayoutMode = 'split' | 'chat-focus' | 'graph-focus';
 
 export const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -20,6 +23,9 @@ export const App: React.FC = () => {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>('proj-titan');
+
+  // Layout mode: split (50/50), chat-focus (65/35), graph-focus (30/70)
+  const [layoutMode, setLayoutMode] = useState<WorkspaceLayoutMode>('split');
 
   // Brain Q&A State
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
@@ -86,7 +92,8 @@ export const App: React.FC = () => {
     setSelectedProject(projectId);
     loadGraphData(projectId);
     if (projectId) {
-      handleAskQuestion(`Why is ${projectId === 'proj-titan' ? 'Project Titan' : projectId === 'proj-mercury' ? 'Project Mercury' : 'Project Apollo'} delayed?`);
+      const projName = projectId === 'proj-titan' ? 'Project Titan' : projectId === 'proj-mercury' ? 'Project Mercury' : 'Project Apollo';
+      handleAskQuestion(`Why is ${projName} delayed?`);
     } else {
       setHighlightNodes([]);
       setHighlightEdges([]);
@@ -104,7 +111,7 @@ export const App: React.FC = () => {
     try {
       await seedDatabase();
       await loadGraphData(selectedProject);
-      alert('Demo organization graph successfully seeded with Cypher MERGE!');
+      alert('NovaTech Logistics demo graph successfully seeded with Cypher MERGE!');
     } catch (err: any) {
       alert(`Seeding failed: ${err.message}`);
     } finally {
@@ -117,6 +124,10 @@ export const App: React.FC = () => {
     setHighlightEdges([]);
     setSelectedEvidenceId(null);
     setInspectNodeId(null);
+  };
+
+  const toggleChatFocus = () => {
+    setLayoutMode((prev) => (prev === 'chat-focus' ? 'split' : 'chat-focus'));
   };
 
   return (
@@ -133,27 +144,75 @@ export const App: React.FC = () => {
         isSeeding={isSeeding}
       />
 
-      {/* 2. Center Panel: Brain Q&A & Evidence */}
-      <BrainChat
-        selectedProject={selectedProject}
-        onAskQuestion={handleAskQuestion}
-        isLoading={isLoadingAnswer}
-        currentResponse={currentResponse}
-        selectedEvidenceId={selectedEvidenceId}
-        onSelectEvidence={handleSelectEvidence}
-        onInspectNode={(nodeId) => setInspectNodeId(nodeId)}
-      />
+      {/* Main Workspace Area */}
+      <div className={`workspace-split-container layout-${layoutMode}`}>
+        {/* Top Layout Mode Switcher Bar */}
+        <div className="workspace-top-bar">
+          <div className="workspace-path-indicator">
+            <span className="text-muted">OrgMind</span>
+            <span className="text-dim">/</span>
+            <span className="path-active">
+              {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', 'PROJECT ') : 'ALL PROJECTS'}
+            </span>
+          </div>
 
-      {/* 3. Right Panel: Knowledge Graph Canvas */}
-      <GraphCanvas
-        nodes={nodes}
-        edges={edges}
-        highlightNodes={highlightNodes}
-        highlightEdges={highlightEdges}
-        selectedNodeId={inspectNodeId}
-        onSelectNode={(nodeId) => setInspectNodeId(nodeId)}
-        onClearHighlight={handleClearHighlight}
-      />
+          <div className="layout-switcher-group">
+            <button
+              className={`layout-switch-btn ${layoutMode === 'split' ? 'is-active' : ''}`}
+              onClick={() => setLayoutMode('split')}
+              title="Split View (Balanced 50/50)"
+            >
+              <Columns2 size={13} />
+              <span>Split View</span>
+            </button>
+            <button
+              className={`layout-switch-btn ${layoutMode === 'chat-focus' ? 'is-active' : ''}`}
+              onClick={() => setLayoutMode('chat-focus')}
+              title="Q&A Focus (Wide reading space)"
+            >
+              <LayoutPanelLeft size={13} />
+              <span>Q&A Focus</span>
+            </button>
+            <button
+              className={`layout-switch-btn ${layoutMode === 'graph-focus' ? 'is-active' : ''}`}
+              onClick={() => setLayoutMode('graph-focus')}
+              title="Graph Focus (Wide canvas)"
+            >
+              <Maximize2 size={13} />
+              <span>Graph Focus</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 2. Center Panel: Brain Q&A & Evidence */}
+        <div className="panel-chat-container">
+          <BrainChat
+            selectedProject={selectedProject}
+            onAskQuestion={handleAskQuestion}
+            isLoading={isLoadingAnswer}
+            currentResponse={currentResponse}
+            selectedEvidenceId={selectedEvidenceId}
+            onSelectEvidence={handleSelectEvidence}
+            onInspectNode={(nodeId) => setInspectNodeId(nodeId)}
+            isGraphExpanded={layoutMode === 'chat-focus'}
+            onToggleGraphExpanded={toggleChatFocus}
+          />
+        </div>
+
+        {/* 3. Right Panel: Knowledge Graph Canvas */}
+        <div className="panel-graph-container">
+          <GraphCanvas
+            nodes={nodes}
+            edges={edges}
+            highlightNodes={highlightNodes}
+            highlightEdges={highlightEdges}
+            selectedNodeId={inspectNodeId}
+            onSelectNode={(nodeId) => setInspectNodeId(nodeId)}
+            onClearHighlight={handleClearHighlight}
+            selectedProject={selectedProject}
+          />
+        </div>
+      </div>
 
       {/* Floating Node Inspector Drawer */}
       <NodeInspector

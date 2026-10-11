@@ -41,6 +41,11 @@ class QuestionResponse(BaseModel):
     highlight_edges: List[str]
     confidence: float
     mode: str
+    direct_answer: Optional[str] = None
+    summary_stats: Optional[Dict[str, Any]] = None
+    causal_chain: Optional[List[Dict[str, Any]]] = None
+    blockers: Optional[List[Dict[str, Any]]] = None
+    missing_facts: Optional[List[str]] = None
 
 
 class ConnectionStatusResponse(BaseModel):
