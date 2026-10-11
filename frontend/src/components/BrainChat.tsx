@@ -1,36 +1,81 @@
 import React, { useState } from 'react';
 import {
   Send,
-  Zap,
-  RotateCcw,
+  Sparkles,
+  Puzzle,
+  Layers,
   Code2,
   Copy,
   Check,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
-  User,
-  FileText,
-  ShieldCheck,
   ArrowRight,
-  ExternalLink,
-  MessageSquare,
-  Sparkles,
+  Maximize2,
+  User,
+  Clock,
+  ShieldAlert,
   HelpCircle
 } from 'lucide-react';
-import { QuestionResponse, EvidenceItem } from '../types';
+import { QuestionResponse } from '../types';
 
 interface BrainChatProps {
   selectedProject: string | null;
+  onSelectProject: (projectId: string | null) => void;
   onAskQuestion: (query: string) => Promise<void>;
   isLoading: boolean;
   currentResponse: QuestionResponse | null;
-  selectedEvidenceId: string | null;
-  onSelectEvidence: (item: EvidenceItem) => void;
-  onInspectNode: (nodeId: string) => void;
-  onOpenGraphView: (targetNodeId?: string) => void;
-  onClearHighlight: () => void;
+  onOpenFlashcard: (nodeId: string) => void;
+  onOpenFlowView: () => void;
 }
+
+const PEOPLE_DATA: Record<
+  string,
+  { name: string; role: string; team: string; avatarColor: string; avatarInitials: string }
+> = {
+  'person-elena': {
+    name: 'Elena Rostova',
+    role: 'VP of Engineering',
+    team: 'Executive / Core',
+    avatarColor: 'linear-gradient(135deg, #A855F7 0%, #EC4899 100%)',
+    avatarInitials: 'ER',
+  },
+  'person-marcus': {
+    name: 'Marcus Vance',
+    role: 'Staff Infrastructure Architect',
+    team: 'Platform Architecture',
+    avatarColor: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
+    avatarInitials: 'MV',
+  },
+  'person-aisha': {
+    name: 'Aisha Patel',
+    role: 'Senior Compliance Officer',
+    team: 'Security & Governance',
+    avatarColor: 'linear-gradient(135deg, #10B981 0%, #06B6D4 100%)',
+    avatarInitials: 'AP',
+  },
+  'person-sarah': {
+    name: 'Sarah Chen',
+    role: 'Lead Data Engineer',
+    team: 'Data Services',
+    avatarColor: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
+    avatarInitials: 'SC',
+  },
+  'person-carlos': {
+    name: 'Carlos Mendez',
+    role: 'Senior Mobile Engineer',
+    team: 'Warehouse Tech',
+    avatarColor: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
+    avatarInitials: 'CM',
+  },
+  'person-david': {
+    name: 'David Kim',
+    role: 'Logistics Integration Lead',
+    team: 'Partner Operations',
+    avatarColor: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
+    avatarInitials: 'DK',
+  },
+};
 
 const SUGGESTIONS = [
   'Why is Project Titan delayed?',
@@ -38,27 +83,20 @@ const SUGGESTIONS = [
   'Who owns the blocking task?',
   'Which decisions are still pending?',
   'What depends on this task?',
-  'Show the evidence connected to this issue.',
 ];
 
 export const BrainChat: React.FC<BrainChatProps> = ({
   selectedProject,
+  onSelectProject,
   onAskQuestion,
   isLoading,
   currentResponse,
-  selectedEvidenceId,
-  onSelectEvidence,
-  onInspectNode,
-  onOpenGraphView,
-  onClearHighlight,
+  onOpenFlashcard,
+  onOpenFlowView,
 }) => {
   const [inputQuery, setInputQuery] = useState('');
   const [showCypher, setShowCypher] = useState(false);
   const [copiedCypher, setCopiedCypher] = useState(false);
-
-  const channelName = selectedProject
-    ? selectedProject.replace('proj-', '')
-    : 'all-initiatives';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,296 +117,297 @@ export const BrainChat: React.FC<BrainChatProps> = ({
     }
   };
 
-  const isLiveMode = currentResponse?.mode === 'live';
-
   return (
-    <div className="discord-chat-workspace">
-      {/* 1. Discord Channel Top Bar */}
-      <div className="discord-top-bar">
-        <div className="discord-channel-title-wrap">
-          <span className="discord-top-hash">#</span>
-          <h2 className="discord-top-channel-name">{channelName}</h2>
-          <span className="discord-top-divider" />
-          <span className="discord-top-topic">
-            Root cause investigation & evidence tracing through FalkorDB
-          </span>
-        </div>
-
-        <div className="discord-top-actions">
-          {/* Prominent n8n Workflow Graph Button */}
-          <button
-            className="btn-discord-n8n"
-            onClick={() => onOpenGraphView()}
-            title="Open full interactive workflow canvas (n8n design)"
-          >
-            <Zap size={14} />
-            <span>View Flow Graph</span>
-          </button>
-
-          <button
-            className="btn-discord-action"
-            onClick={onClearHighlight}
-            title="Reset highlight and node selection"
-          >
-            <RotateCcw size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Discord Message Feed */}
-      <div className="discord-message-feed">
-        {/* Welcome Intro Message */}
-        <div className="discord-welcome-card">
-          <div className="welcome-hash-circle">
-            <span className="welcome-hash">#</span>
+    <div className="scratch-chat-container">
+      {/* 1. Sleek Top Header with Initiative Filter & Scratch Canvas Button */}
+      <header className="scratch-chat-header">
+        <div className="header-left-group">
+          <div className="chat-title-badge">
+            <Sparkles size={16} className="text-pink" />
+            <span className="title-text">OrgMind Brain</span>
           </div>
-          <h3 className="welcome-title">Welcome to #{channelName}!</h3>
-          <p className="welcome-desc">
-            This is the start of your OrgMind investigation channel for{' '}
-            <strong>{channelName}</strong>. Ask any question below to trace real graph evidence, or
-            click <strong>"View Flow Graph"</strong> above to see the n8n-style workflow canvas.
-          </p>
+
+          <div className="project-pill-selector">
+            <button
+              className={`project-pill ${selectedProject === 'proj-titan' ? 'is-active' : ''}`}
+              onClick={() => onSelectProject('proj-titan')}
+            >
+              Project Titan
+            </button>
+            <button
+              className={`project-pill ${selectedProject === 'proj-apollo' ? 'is-active' : ''}`}
+              onClick={() => onSelectProject('proj-apollo')}
+            >
+              Project Apollo
+            </button>
+            <button
+              className={`project-pill ${selectedProject === 'proj-mercury' ? 'is-active' : ''}`}
+              onClick={() => onSelectProject('proj-mercury')}
+            >
+              Project Mercury
+            </button>
+            <button
+              className={`project-pill ${selectedProject === null ? 'is-active' : ''}`}
+              onClick={() => onSelectProject(null)}
+            >
+              All Projects
+            </button>
+          </div>
         </div>
 
-        {/* Loading Indicator */}
+        <button className="btn-scratch-canvas" onClick={onOpenFlowView} title="Open Scratch-style workflow canvas">
+          <Puzzle size={14} />
+          <span>Open Scratch Flow</span>
+        </button>
+      </header>
+
+      {/* 2. Chat Feed Area */}
+      <div className="scratch-feed-scroll">
+        {/* Loading State */}
         {isLoading && (
-          <div className="discord-message-row bot-row loading-row">
-            <div className="discord-avatar bot-avatar">
-              <Sparkles size={18} color="#FFFFFF" />
+          <div className="scratch-loading-card">
+            <div className="loading-orbit">
+              <span className="orbit-dot pink" />
+              <span className="orbit-dot purple" />
             </div>
-            <div className="discord-message-content">
-              <div className="discord-message-author-line">
-                <span className="discord-bot-name">OrgMind</span>
-                <span className="discord-bot-tag">BOT</span>
-                <span className="discord-timestamp">Just now</span>
-              </div>
-              <div className="discord-loading-bubble">
-                <span className="loading-dot" />
-                <span className="loading-dot" />
-                <span className="loading-dot" />
-                <span className="loading-status-text">
-                  Executing Cypher queries and traversing dependency paths in FalkorDB...
-                </span>
-              </div>
-            </div>
+            <p className="loading-msg">Connecting nodes and tracing causal dependency chain in FalkorDB...</p>
           </div>
         )}
 
-        {/* Conversation Answer */}
+        {/* Answer Content (Human-readable + Scratch Cards) */}
         {!isLoading && currentResponse && (
-          <>
-            {/* User Message */}
-            <div className="discord-message-row user-row">
-              <div className="discord-avatar user-avatar">
-                <span>You</span>
-              </div>
-              <div className="discord-message-content">
-                <div className="discord-message-author-line">
-                  <span className="discord-author-name">You</span>
-                  <span className="discord-timestamp">Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-                <div className="discord-message-text">{currentResponse.query}</div>
-              </div>
+          <div className="scratch-answer-wrapper">
+            {/* User Question Pill */}
+            <div className="user-question-row">
+              <span className="user-label">Asked</span>
+              <p className="user-question-text">{currentResponse.query}</p>
             </div>
 
-            {/* Bot Response Message with Discord Embed */}
-            <div className="discord-message-row bot-row">
-              <div className="discord-avatar bot-avatar">
-                <Sparkles size={18} color="#FFFFFF" />
+            {/* Direct Human-Readable Story Card */}
+            <div className="story-summary-card">
+              <div className="story-card-top">
+                <span className="story-badge">
+                  <Sparkles size={13} />
+                  <span>The Real Story</span>
+                </span>
+                <span className="graph-verified-badge">Verified Graph Data</span>
               </div>
-              <div className="discord-message-content">
-                <div className="discord-message-author-line">
-                  <span className="discord-bot-name">OrgMind</span>
-                  <span className="discord-bot-tag">BOT</span>
-                  <span className="discord-timestamp">Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className={`discord-mode-pill ${isLiveMode ? 'mode-live' : 'mode-demo'}`}>
-                    {isLiveMode ? 'Live FalkorDB' : 'Demo Mode'}
-                  </span>
+
+              <div className="story-card-body">
+                <p className="story-main-text">
+                  {currentResponse.direct_answer || (
+                    <span>
+                      <strong>Project Titan is delayed by 18 days.</strong> The rollout is blocked by
+                      unresolved data compliance questions. Specifically, API Gateway v2 cannot be
+                      deployed until SOC2 telemetry residency is approved by executive leadership.
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Delay & Impact Bar */}
+              {currentResponse.summary_stats && (
+                <div className="story-metrics-strip">
+                  <div className="metric-chip chip-delay">
+                    <Clock size={13} />
+                    <span><strong>{currentResponse.summary_stats.total_delay_days} Days</strong> Estimated Delay</span>
+                  </div>
+                  <div className="metric-chip chip-blockers">
+                    <AlertTriangle size={13} />
+                    <span><strong>{currentResponse.summary_stats.critical_blockers}</strong> Blocking Path</span>
+                  </div>
+                  <div className="metric-chip chip-decisions">
+                    <span><strong>{currentResponse.summary_stats.pending_decisions_count}</strong> Pending Decision</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Scratch-Style Dependency Chain (Interactive Blocks) */}
+            {currentResponse.causal_chain && currentResponse.causal_chain.length > 0 && (
+              <div className="scratch-blocks-section">
+                <div className="scratch-section-header">
+                  <div className="section-title-wrap">
+                    <Puzzle size={15} className="text-purple" />
+                    <span>Causal Chain (Click any Scratch block to expand Flashcard):</span>
+                  </div>
+                  <span className="tap-hint">Tap block to flip card</span>
                 </div>
 
-                {/* Primary Discord Embed: Direct Answer & Stats */}
-                <div className="discord-embed-card">
-                  <div className="embed-header-row">
-                    <div className="embed-title-badge">
-                      <ShieldCheck size={14} color="#10B981" />
-                      <span>Executive Summary</span>
-                    </div>
-                    <span className="embed-verified-tag">100% Graph Corroborated</span>
-                  </div>
+                <div className="scratch-blocks-flow">
+                  {currentResponse.causal_chain.map((step, idx) => {
+                    const blockCategory =
+                      step.label === 'Project'
+                        ? 'cat-project'
+                        : step.label === 'Task'
+                        ? 'cat-task'
+                        : step.label === 'Person'
+                        ? 'cat-person'
+                        : step.label === 'Decision'
+                        ? 'cat-decision'
+                        : 'cat-doc';
 
-                  <div className="embed-direct-answer">
-                    {currentResponse.direct_answer ? (
-                      <p>{currentResponse.direct_answer}</p>
-                    ) : (
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: currentResponse.answer
-                            .replace(/^### (.*$)/gim, '<strong>$1</strong>')
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\n\n/g, '<br/><br/>'),
-                        }}
-                      />
-                    )}
-                  </div>
-
-                  {/* Summary Metric Badges */}
-                  {currentResponse.summary_stats && (
-                    <div className="embed-metrics-row">
-                      <div className="embed-metric-pill metric-red">
-                        <span className="metric-label">Critical Blockers:</span>
-                        <strong className="metric-val">{currentResponse.summary_stats.critical_blockers}</strong>
-                      </div>
-                      <div className="embed-metric-pill metric-amber">
-                        <span className="metric-label">Estimated Delay:</span>
-                        <strong className="metric-val">{currentResponse.summary_stats.total_delay_days}d</strong>
-                      </div>
-                      <div className="embed-metric-pill metric-purple">
-                        <span className="metric-label">Pending Decisions:</span>
-                        <strong className="metric-val">{currentResponse.summary_stats.pending_decisions_count}</strong>
-                      </div>
-                      <div className="embed-metric-pill metric-cyan">
-                        <span className="metric-label">Evidence Docs:</span>
-                        <strong className="metric-val">{currentResponse.summary_stats.supporting_docs_count}</strong>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Causal Flow Chain (n8n Node Breadcrumbs) */}
-                  {currentResponse.causal_chain && currentResponse.causal_chain.length > 0 && (
-                    <div className="embed-causal-flow">
-                      <div className="causal-flow-title">
-                        <span>Causal Dependency Chain</span>
-                        <button
-                          className="btn-flow-link"
-                          onClick={() => onOpenGraphView(currentResponse.causal_chain?.[0]?.id)}
+                    return (
+                      <React.Fragment key={step.id}>
+                        <div
+                          className={`scratch-flow-block ${blockCategory}`}
+                          onClick={() => onOpenFlashcard(step.id)}
+                          title="Click to view detailed Flashcard"
                         >
-                          <Zap size={11} />
-                          <span>Open in Flow Graph ↗</span>
-                        </button>
-                      </div>
-
-                      <div className="n8n-chain-nodes">
-                        {currentResponse.causal_chain.map((step, idx) => (
-                          <React.Fragment key={step.id}>
-                            <div
-                              className={`n8n-chain-step ${
-                                selectedEvidenceId === step.id ? 'is-selected' : ''
-                              }`}
-                              onClick={() => onInspectNode(step.id)}
-                              title={`Inspect ${step.title}`}
-                            >
-                              <span className="step-tag">{step.label}</span>
-                              <span className="step-name">{step.title}</span>
-                            </div>
-                            {step.rel && (
-                              <div className="n8n-chain-arrow">
-                                <span>-[{step.rel}]-&gt;</span>
-                              </div>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Blocker Cards */}
-                  {currentResponse.blockers && currentResponse.blockers.length > 0 && (
-                    <div className="embed-blockers-list">
-                      <div className="blockers-list-heading">
-                        <AlertTriangle size={13} color="#EF4444" />
-                        <span>Active Blocking Records ({currentResponse.blockers.length})</span>
-                      </div>
-
-                      {currentResponse.blockers.map((b) => (
-                        <div key={b.id} className="discord-blocker-subcard">
-                          <div className="subcard-header">
-                            <div className="subcard-title-wrap">
-                              <span className="priority-pill">{b.priority}</span>
-                              <h4 className="subcard-title">{b.title}</h4>
-                            </div>
-                            <span className="delay-badge">{b.delay_days}d delay</span>
-                          </div>
-
-                          <div className="subcard-meta">
-                            <User size={12} className="text-muted" />
-                            <span>Owner: </span>
-                            <strong>{b.owner}</strong>
-                            {b.owner_role && <span className="text-muted"> ({b.owner_role})</span>}
-                          </div>
-
-                          <div className="subcard-reason">
-                            <span className="reason-tag">Evidence:</span>
-                            <p>{b.reason}</p>
-                          </div>
-
-                          {b.decision && (
-                            <div className="subcard-extra">
-                              <span className="extra-key">Blocking Decision:</span>
-                              <span className="extra-val">{b.decision}</span>
-                            </div>
-                          )}
-
-                          <div className="subcard-actions">
-                            <button
-                              className="btn-subcard-inspect"
-                              onClick={() => onInspectNode(b.id)}
-                            >
-                              <span>Inspect Properties</span>
-                            </button>
-                            <button
-                              className="btn-subcard-graph"
-                              onClick={() => onOpenGraphView(b.id)}
-                            >
-                              <Zap size={12} />
-                              <span>Focus in Graph ↗</span>
-                            </button>
-                          </div>
+                          <span className="block-category-tag">{step.label}</span>
+                          <span className="block-title-text">{step.title}</span>
+                          <Maximize2 size={11} className="block-expand-icon" />
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* Collapsible Cypher Query Accordion */}
-                  <div className="embed-cypher-accordion">
-                    <button
-                      className="cypher-accordion-btn"
-                      onClick={() => setShowCypher(!showCypher)}
-                    >
-                      <div className="accordion-left">
-                        <Code2 size={13} />
-                        <span>Underlying FalkorDB Cypher Query</span>
-                      </div>
-                      {showCypher ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                    </button>
-
-                    {showCypher && (
-                      <div className="cypher-accordion-body">
-                        <div className="cypher-code-header">
-                          <span>CYPHER</span>
-                          <button className="btn-copy-code" onClick={handleCopyCypher}>
-                            {copiedCypher ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
-                            <span>{copiedCypher ? 'Copied' : 'Copy'}</span>
-                          </button>
-                        </div>
-                        <pre className="cypher-code-block">{currentResponse.cypher}</pre>
-                      </div>
-                    )}
-                  </div>
+                        {step.rel && (
+                          <div className="scratch-block-connector">
+                            <span className="connector-arrow">➔</span>
+                            <span className="connector-rel">{step.rel}</span>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
+            )}
+
+            {/* 4. People Involved (Cards with Avatars & Real Stories) */}
+            <div className="people-cards-section">
+              <div className="scratch-section-header">
+                <div className="section-title-wrap">
+                  <User size={15} className="text-pink" />
+                  <span>Key People Involved in this Chain</span>
+                </div>
+              </div>
+
+              <div className="people-cards-grid">
+                {[
+                  {
+                    id: 'person-elena',
+                    ...PEOPLE_DATA['person-elena'],
+                    context: 'Decision Maker for DEC-2024-08 (EU Data Residency Scope). Holding final sign-off.',
+                    status: 'PENDING SIGNOFF',
+                  },
+                  {
+                    id: 'person-marcus',
+                    ...PEOPLE_DATA['person-marcus'],
+                    context: 'Lead architect on API Gateway v2. Blocked from proceeding to production deploy.',
+                    status: 'BLOCKED',
+                  },
+                  {
+                    id: 'person-aisha',
+                    ...PEOPLE_DATA['person-aisha'],
+                    context: 'Prepared SOC2 audit gap report. Waiting on executive resolution before clearing gateway.',
+                    status: 'WAITING',
+                  },
+                ].map((p) => (
+                  <div
+                    key={p.id}
+                    className="person-avatar-card"
+                    onClick={() => onOpenFlashcard(p.id)}
+                  >
+                    <div className="avatar-header">
+                      <div className="person-avatar-circle" style={{ background: p.avatarColor }}>
+                        <span>{p.avatarInitials}</span>
+                      </div>
+                      <div className="person-names">
+                        <h4 className="person-name">{p.name}</h4>
+                        <span className="person-role">{p.role}</span>
+                        <span className="person-team">{p.team}</span>
+                      </div>
+                      <span className="person-status-badge">{p.status}</span>
+                    </div>
+
+                    <p className="person-context-story">{p.context}</p>
+
+                    <div className="card-footer-action">
+                      <span>View Flashcard ↗</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </>
+
+            {/* 5. Active Blockers Flashcards Grid */}
+            {currentResponse.blockers && currentResponse.blockers.length > 0 && (
+              <div className="blockers-deck-section">
+                <div className="scratch-section-header">
+                  <div className="section-title-wrap">
+                    <ShieldAlert size={15} className="text-red" />
+                    <span>Active Blocker Records ({currentResponse.blockers.length})</span>
+                  </div>
+                </div>
+
+                <div className="blockers-cards-deck">
+                  {currentResponse.blockers.map((b) => (
+                    <div
+                      key={b.id}
+                      className="blocker-deck-card"
+                      onClick={() => onOpenFlashcard(b.id)}
+                    >
+                      <div className="deck-card-top">
+                        <span className="priority-pill-pink">{b.priority}</span>
+                        <span className="delay-badge-chip">{b.delay_days}d delay</span>
+                      </div>
+
+                      <h4 className="deck-card-title">{b.title}</h4>
+
+                      <div className="deck-card-meta">
+                        <span className="meta-label">Owner:</span>
+                        <strong>{b.owner}</strong>
+                        {b.owner_role && <span className="meta-sub"> ({b.owner_role})</span>}
+                      </div>
+
+                      <p className="deck-card-reason">{b.reason}</p>
+
+                      <div className="deck-card-footer">
+                        <span>Click to expand full Flashcard ➔</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 6. Collapsible Technical Details (Cypher Query) */}
+            <div className="scratch-cypher-accordion">
+              <button
+                className="btn-accordion-toggle"
+                onClick={() => setShowCypher(!showCypher)}
+              >
+                <div className="accordion-title">
+                  <Code2 size={14} />
+                  <span>Technical Proof: Parameterized FalkorDB Cypher Query</span>
+                </div>
+                {showCypher ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {showCypher && (
+                <div className="accordion-content">
+                  <div className="code-header-bar">
+                    <span>CYPHER GRAPH QUERY</span>
+                    <button className="btn-copy-code" onClick={handleCopyCypher}>
+                      {copiedCypher ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                      <span>{copiedCypher ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  <pre className="cypher-code-block">{currentResponse.cypher}</pre>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* 3. Discord Bottom Chat Input Bar */}
-      <div className="discord-input-container">
+      {/* 7. Bottom Input Bar with Purple/Pink Accents */}
+      <footer className="scratch-input-area">
         {/* Suggestion Chips */}
-        <div className="discord-suggestion-row">
+        <div className="scratch-chips-row">
           {SUGGESTIONS.map((s, idx) => (
             <button
               key={idx}
-              className="discord-suggest-pill"
+              className="scratch-chip-btn"
               onClick={() => handleSuggestionClick(s)}
               disabled={isLoading}
             >
@@ -377,26 +416,26 @@ export const BrainChat: React.FC<BrainChatProps> = ({
           ))}
         </div>
 
-        {/* Input Form */}
-        <form onSubmit={handleSubmit} className="discord-input-box">
+        {/* Input Bar */}
+        <form onSubmit={handleSubmit} className="scratch-input-form">
           <input
             type="text"
-            className="discord-text-input"
-            placeholder={`Message #${channelName} (or ask why delayed)...`}
+            className="scratch-text-input"
+            placeholder="Ask anything about delays, blockers, decisions, or owners..."
             value={inputQuery}
             onChange={(e) => setInputQuery(e.target.value)}
             disabled={isLoading}
           />
           <button
             type="submit"
-            className="discord-send-btn"
+            className="scratch-send-btn"
             disabled={!inputQuery.trim() || isLoading}
-            title="Send query (Enter)"
+            title="Ask Brain (Enter)"
           >
             <Send size={15} />
           </button>
         </form>
-      </div>
+      </footer>
     </div>
   );
 };

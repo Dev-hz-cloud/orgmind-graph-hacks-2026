@@ -21,7 +21,7 @@ import {
   ArrowRightLeft,
   ArrowUpDown,
   ArrowLeft,
-  Zap,
+  Puzzle,
   Sparkles
 } from 'lucide-react';
 import { GraphNode, GraphEdge } from '../types';
@@ -41,23 +41,24 @@ interface GraphCanvasProps {
   onClearHighlight: () => void;
   selectedProject: string | null;
   onBackToChat?: () => void;
+  onOpenFlashcard?: (nodeId: string) => void;
 }
 
 const EDGE_COLORS: Record<string, string> = {
   BLOCKED_BY: '#EF4444',
-  DEPENDS_ON: '#A78BFA',
+  DEPENDS_ON: '#A855F7',
   ASSIGNED_TO: '#10B981',
   WAITING_FOR: '#F59E0B',
   HAS_TASK: '#38BDF8',
   REFERENCES: '#22D3EE',
-  MENTIONS: '#06B6D4',
+  MENTIONS: '#EC4899',
   MADE_BY: '#8B5CF6',
   OWNS: '#6366F1',
   MEMBER_OF: '#FB7185',
 };
 
-const NODE_WIDTH = 240;
-const NODE_HEIGHT = 80;
+const NODE_WIDTH = 230;
+const NODE_HEIGHT = 76;
 
 function calculateDagreLayout(
   nodes: GraphNode[],
@@ -70,8 +71,8 @@ function calculateDagreLayout(
   g.setGraph({
     rankdir: direction,
     align: 'UL',
-    nodesep: 40,
-    ranksep: 90,
+    nodesep: 35,
+    ranksep: 80,
     marginx: 40,
     marginy: 40,
   });
@@ -115,6 +116,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   onClearHighlight,
   selectedProject,
   onBackToChat,
+  onOpenFlashcard,
 }) => {
   const { fitView } = useReactFlow();
   const [filterType, setFilterType] = useState<string>('ALL');
@@ -122,7 +124,6 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [layoutDirection, setLayoutDirection] = useState<'LR' | 'TB'>('LR');
 
-  // Compute 1-hop neighborhood for selected node
   const neighborhood = useMemo(() => {
     if (!selectedNodeId) return { nodeIds: new Set<string>(), edgeIds: new Set<string>() };
 
@@ -141,9 +142,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     return { nodeIds, edgeIds };
   }, [selectedNodeId, rawEdges]);
 
-  // Dynamic Dagre Layout + Flow Nodes & Edges Generation
   const { flowNodes, flowEdges } = useMemo(() => {
-    // 1. Filter nodes by category and search
     const filteredRawNodes = rawNodes.filter((n) => {
       if (filterType !== 'ALL' && n.label.toUpperCase() !== filterType) {
         return false;
@@ -160,10 +159,8 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     const isHighlightActive =
       highlightNodes.length > 0 || (selectedNodeId !== null && neighborhood.nodeIds.size > 0);
 
-    // 2. Compute dynamic layout using Dagre
     const positions = calculateDagreLayout(filteredRawNodes, rawEdges, layoutDirection);
 
-    // 3. Generate React Flow nodes
     const generatedNodes: Node[] = filteredRawNodes.map((n) => {
       const pos = positions[n.id] || { x: 0, y: 0 };
       const isPathHighlighted = highlightNodes.includes(n.id);
@@ -184,12 +181,14 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           isHighlighted,
           isSelected,
           isDimmed,
-          onSelect: onSelectNode,
+          onSelect: (nodeId: string) => {
+            onSelectNode(nodeId);
+            onOpenFlashcard?.(nodeId);
+          },
         },
       };
     });
 
-    // 4. Generate React Flow edges
     const generatedEdges: Edge[] = rawEdges
       .filter((e) => visibleNodeIds.has(e.src) && visibleNodeIds.has(e.dst))
       .map((e) => {
@@ -202,8 +201,8 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         const isDimmed = isHighlightActive && !isHighlighted && !isHovered;
 
         const baseColor = EDGE_COLORS[e.rel] || '#94A3B8';
-        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(148, 163, 184, 0.25)';
-        const strokeWidth = isHighlighted || isHovered ? 2.5 : 1.4;
+        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(168, 85, 247, 0.25)';
+        const strokeWidth = isHighlighted || isHovered ? 2.6 : 1.4;
 
         const showLabel = isHighlighted || isHovered || (e.rel === 'BLOCKED_BY' && !isDimmed);
 
@@ -227,15 +226,15 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             cursor: 'pointer',
           },
           labelStyle: {
-            fill: isHighlighted ? '#FFFFFF' : '#94A3B8',
+            fill: isHighlighted ? '#FFFFFF' : '#CBD5E1',
             fontSize: 9.5,
             fontWeight: 600,
             fontFamily: 'monospace',
           },
           labelBgStyle: {
-            fill: '#0E131F',
-            fillOpacity: 0.94,
-            stroke: isHighlighted ? baseColor : 'rgba(255, 255, 255, 0.1)',
+            fill: '#0F1017',
+            fillOpacity: 0.95,
+            stroke: isHighlighted ? baseColor : 'rgba(168, 85, 247, 0.3)',
             strokeWidth: 1,
           },
           labelBgPadding: [5, 3] as [number, number],
@@ -256,6 +255,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     hoveredEdgeId,
     layoutDirection,
     onSelectNode,
+    onOpenFlashcard,
   ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
@@ -266,7 +266,6 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     setEdges(flowEdges);
   }, [flowNodes, flowEdges, setNodes, setEdges]);
 
-  // Auto-fit on load, direction switch, or project change
   useEffect(() => {
     const timer = setTimeout(() => {
       fitView({ padding: 0.2, duration: 400 });
@@ -275,89 +274,76 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   }, [selectedProject, layoutDirection, fitView]);
 
   return (
-    <div className="n8n-graph-container">
-      {/* n8n Workflow Top Navigation Bar */}
-      <div className="n8n-toolbar">
-        <div className="n8n-toolbar-left">
+    <div className="scratch-canvas-container">
+      {/* Top Bar */}
+      <div className="scratch-canvas-toolbar">
+        <div className="toolbar-left">
           {onBackToChat && (
-            <button className="btn-n8n-back" onClick={onBackToChat} title="Return to Investigation Chat">
+            <button className="btn-canvas-back" onClick={onBackToChat} title="Return to Chat Brain">
               <ArrowLeft size={14} />
               <span>Back to Chat</span>
             </button>
           )}
 
-          <div className="n8n-workflow-title">
-            <Zap size={14} color="#6366F1" />
-            <span className="workflow-name">
-              Workflow: {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', 'PROJECT ') : 'ALL INITIATIVES'}
+          <div className="canvas-title-wrap">
+            <Puzzle size={16} className="text-pink" />
+            <span className="canvas-title">
+              Scratch Flow: {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', '') : 'ALL NODES'}
             </span>
-            <span className="workflow-count-badge">{flowNodes.length} nodes</span>
+            <span className="canvas-hint-pill">Click any block to open Flashcard</span>
           </div>
         </div>
 
-        {/* Filter Chips */}
-        <div className="n8n-filter-pills">
+        {/* Filter Pills */}
+        <div className="canvas-filter-pills">
           {['ALL', 'PROJECT', 'TASK', 'DECISION', 'PERSON', 'DOCUMENT'].map((type) => (
             <button
               key={type}
-              className={`n8n-pill ${filterType === type ? 'is-active' : ''}`}
+              className={`canvas-pill ${filterType === type ? 'is-active' : ''}`}
               onClick={() => setFilterType(type)}
             >
-              {type === 'ALL' ? 'All' : `${type[0] + type.slice(1).toLowerCase()}s`}
+              {type === 'ALL' ? 'All Blocks' : `${type[0] + type.slice(1).toLowerCase()}s`}
             </button>
           ))}
         </div>
 
-        {/* Actions & Search */}
-        <div className="n8n-toolbar-right">
+        {/* Right Tools */}
+        <div className="toolbar-right">
           <button
-            className="btn-n8n-tool"
+            className="btn-canvas-tool"
             onClick={() => setLayoutDirection((prev) => (prev === 'LR' ? 'TB' : 'LR'))}
-            title="Toggle orientation"
+            title="Toggle layout flow direction"
           >
             {layoutDirection === 'LR' ? <ArrowUpDown size={13} /> : <ArrowRightLeft size={13} />}
-            <span>{layoutDirection === 'LR' ? 'Vertical' : 'Horizontal'}</span>
+            <span>{layoutDirection === 'LR' ? 'Vertical Flow' : 'Horizontal Flow'}</span>
           </button>
 
-          <div className="n8n-search-input-wrap">
+          <div className="canvas-search-wrap">
             <Search size={13} className="text-muted" />
             <input
               type="text"
-              placeholder="Search nodes..."
+              placeholder="Search blocks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="n8n-search-input"
+              className="canvas-search-input"
             />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="search-clear-btn">
-                ×
-              </button>
-            )}
           </div>
 
           {(highlightNodes.length > 0 || selectedNodeId !== null) && (
-            <button
-              className="btn-n8n-tool btn-focus-clear"
-              onClick={onClearHighlight}
-              title="Clear active focus"
-            >
+            <button className="btn-canvas-tool btn-clear-focus" onClick={onClearHighlight}>
               <RotateCcw size={13} />
               <span>Clear Focus</span>
             </button>
           )}
 
-          <button
-            className="btn-n8n-tool"
-            onClick={() => fitView({ padding: 0.2, duration: 400 })}
-            title="Fit to view"
-          >
+          <button className="btn-canvas-tool" onClick={() => fitView({ padding: 0.2, duration: 400 })}>
             <Maximize2 size={13} />
             <span>Fit View</span>
           </button>
         </div>
       </div>
 
-      {/* React Flow n8n Canvas */}
+      {/* Canvas */}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -372,25 +358,25 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdgeId(null)}
       >
-        <Background color="#1E2333" gap={24} size={1.2} />
-        <Controls className="n8n-controls" showInteractive={false} />
+        <Background color="#1A1528" gap={26} size={1.2} />
+        <Controls className="scratch-controls" showInteractive={false} />
         <MiniMap
           nodeColor={(n) => {
             const label = n.data?.label;
             if (label === 'Project') return '#38BDF8';
             if (label === 'Task') return '#F59E0B';
-            if (label === 'Person') return '#10B981';
-            if (label === 'Decision') return '#8B5CF6';
+            if (label === 'Person') return '#EC4899';
+            if (label === 'Decision') return '#A855F7';
             if (label === 'Document') return '#06B6D4';
             return '#64748B';
           }}
-          className="n8n-minimap"
-          maskColor="rgba(8, 10, 18, 0.75)"
+          className="scratch-minimap"
+          maskColor="rgba(8, 9, 14, 0.8)"
         />
       </ReactFlow>
 
-      {/* Legend Footer */}
-      <div className="n8n-legend-bar">
+      {/* Footer Legend */}
+      <div className="scratch-legend-bar">
         <div className="legend-chip">
           <span className="legend-dot" style={{ background: '#38BDF8' }} />
           <span>Project</span>
@@ -400,20 +386,16 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           <span>Task</span>
         </div>
         <div className="legend-chip">
-          <span className="legend-dot" style={{ background: '#8B5CF6' }} />
+          <span className="legend-dot" style={{ background: '#EC4899' }} />
+          <span>Person</span>
+        </div>
+        <div className="legend-chip">
+          <span className="legend-dot" style={{ background: '#A855F7' }} />
           <span>Decision</span>
         </div>
         <div className="legend-chip">
           <span className="legend-dot" style={{ background: '#06B6D4' }} />
           <span>Document</span>
-        </div>
-        <div className="legend-chip">
-          <span className="legend-dot" style={{ background: '#10B981' }} />
-          <span>Person</span>
-        </div>
-        <div className="legend-chip">
-          <span style={{ color: '#EF4444', fontWeight: 700 }}>╌╌</span>
-          <span>BLOCKED_BY</span>
         </div>
       </div>
     </div>

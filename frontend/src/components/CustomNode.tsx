@@ -2,13 +2,12 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import {
   FolderGit2,
-  CheckCircle2,
-  AlertTriangle,
   Clock,
   User,
   Users,
   FileText,
-  Scale
+  Scale,
+  Maximize2
 } from 'lucide-react';
 import { NodeLabel } from '../types';
 
@@ -25,123 +24,139 @@ interface CustomNodeProps {
   };
 }
 
-const LABEL_CONFIG: Record<
+// Scratch Category Color Palette
+const SCRATCH_THEMES: Record<
   NodeLabel,
   {
-    color: string;
-    bgColor: string;
+    gradient: string;
+    bgBlock: string;
+    border: string;
+    accent: string;
     icon: React.FC<{ size: number; color?: string }>;
-    tag: string;
+    category: string;
   }
 > = {
   Project: {
-    color: '#38BDF8',
-    bgColor: 'rgba(56, 189, 248, 0.15)',
+    gradient: 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)',
+    bgBlock: '#0C4A6E',
+    border: '#38BDF8',
+    accent: '#38BDF8',
     icon: FolderGit2,
-    tag: 'PROJECT',
+    category: 'PROJECT',
   },
   Task: {
-    color: '#F59E0B',
-    bgColor: 'rgba(245, 158, 11, 0.15)',
+    gradient: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)',
+    bgBlock: '#78350F',
+    border: '#F59E0B',
+    accent: '#F59E0B',
     icon: Clock,
-    tag: 'TASK',
+    category: 'TASK',
   },
   Person: {
-    color: '#10B981',
-    bgColor: 'rgba(16, 185, 129, 0.15)',
+    gradient: 'linear-gradient(135deg, #BE185D 0%, #EC4899 100%)',
+    bgBlock: '#831843',
+    border: '#EC4899',
+    accent: '#EC4899',
     icon: User,
-    tag: 'PERSON',
+    category: 'MEMBER',
   },
   Decision: {
-    color: '#8B5CF6',
-    bgColor: 'rgba(139, 92, 246, 0.15)',
+    gradient: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+    bgBlock: '#581C87',
+    border: '#A855F7',
+    accent: '#A855F7',
     icon: Scale,
-    tag: 'DECISION',
+    category: 'DECISION',
   },
   Document: {
-    color: '#06B6D4',
-    bgColor: 'rgba(6, 182, 212, 0.15)',
+    gradient: 'linear-gradient(135deg, #0891B2 0%, #22D3EE 100%)',
+    bgBlock: '#164E63',
+    border: '#22D3EE',
+    accent: '#22D3EE',
     icon: FileText,
-    tag: 'DOCUMENT',
+    category: 'DOCUMENT',
   },
   Team: {
-    color: '#FB7185',
-    bgColor: 'rgba(251, 113, 133, 0.15)',
+    gradient: 'linear-gradient(135deg, #E11D48 0%, #FB7185 100%)',
+    bgBlock: '#881337',
+    border: '#FB7185',
+    accent: '#FB7185',
     icon: Users,
-    tag: 'TEAM',
+    category: 'TEAM',
   },
 };
 
 export const CustomGraphNode = memo(({ data }: CustomNodeProps) => {
   const { label, title, properties, isHighlighted, isDimmed, isSelected } = data;
-  const cfg = LABEL_CONFIG[label] || LABEL_CONFIG.Project;
-  const Icon = cfg.icon;
+  const theme = SCRATCH_THEMES[label] || SCRATCH_THEMES.Project;
+  const Icon = theme.icon;
 
   const status = properties.status;
   const delay = properties.delay_days;
   const isBlocked = status === 'BLOCKED' || status === 'DELAYED';
 
-  // Subtitle snippet
   let subText = '';
   if (label === 'Person') {
     subText = properties.role || properties.email || '';
   } else if (label === 'Task') {
-    subText = isBlocked ? `${delay ? `${delay}d delay · ` : ''}Blocked` : properties.due_date ? `Due ${properties.due_date}` : 'Active';
+    subText = isBlocked
+      ? `${delay ? `${delay}d delay · ` : ''}Blocked`
+      : properties.due_date
+      ? `Due ${properties.due_date}`
+      : 'Active';
   } else if (label === 'Decision') {
     subText = properties.status === 'PENDING' ? 'Pending sign-off' : 'Approved';
   } else if (label === 'Document') {
     subText = properties.type || 'Specification';
   } else if (label === 'Project') {
-    subText = `${properties.progress || 0}% progress · Target Nov 15`;
+    subText = `${properties.progress || 0}% complete`;
   }
 
   return (
     <div
-      className={`n8n-node-card ${isHighlighted ? 'is-highlighted' : ''} ${
+      className={`scratch-node-card ${isHighlighted ? 'is-highlighted' : ''} ${
         isSelected ? 'is-selected' : ''
       } ${isDimmed ? 'is-dimmed' : ''}`}
       onClick={() => data.onSelect?.(data.id)}
+      style={{
+        borderColor: isHighlighted ? '#EC4899' : isSelected ? '#A855F7' : `${theme.border}50`,
+      }}
     >
-      {/* Target handle */}
-      <Handle type="target" position={Position.Left} className="n8n-handle" />
+      <Handle type="target" position={Position.Left} className="scratch-handle" />
 
-      {/* Left Icon Square */}
+      {/* Left Icon Notch / Block */}
       <div
-        className="n8n-node-icon"
-        style={{
-          background: isBlocked ? 'rgba(239, 68, 68, 0.18)' : cfg.bgColor,
-          borderColor: isBlocked ? 'rgba(239, 68, 68, 0.4)' : `${cfg.color}40`,
-        }}
+        className="scratch-node-badge"
+        style={{ background: theme.gradient }}
       >
-        <Icon size={18} color={isBlocked ? '#EF4444' : cfg.color} />
+        <Icon size={16} color="#FFFFFF" />
       </div>
 
-      {/* Center Details */}
-      <div className="n8n-node-details">
-        <div className="n8n-node-header">
-          <span className="n8n-node-type" style={{ color: cfg.color }}>
-            {cfg.tag}
+      {/* Content */}
+      <div className="scratch-node-content">
+        <div className="scratch-node-top">
+          <span className="scratch-node-cat" style={{ color: theme.accent }}>
+            {theme.category}
           </span>
-          {status && (
-            <span
-              className={`n8n-status-dot ${
-                isBlocked ? 'status-red' : status === 'APPROVED' || status === 'ON_TRACK' ? 'status-green' : 'status-yellow'
-              }`}
-            />
+          {isBlocked && (
+            <span className="scratch-delay-tag">{delay ? `${delay}d` : 'BLOCKED'}</span>
           )}
         </div>
-        <div className="n8n-node-title" title={title}>
+        <div className="scratch-node-title" title={title}>
           {title}
         </div>
         {subText && (
-          <div className="n8n-node-sub" title={subText}>
+          <div className="scratch-node-sub" title={subText}>
             {subText}
           </div>
         )}
       </div>
 
-      {/* Source handle */}
-      <Handle type="source" position={Position.Right} className="n8n-handle" />
+      <div className="scratch-expand-hint" title="Click to open flashcard">
+        <Maximize2 size={11} />
+      </div>
+
+      <Handle type="source" position={Position.Right} className="scratch-handle" />
     </div>
   );
 });

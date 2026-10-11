@@ -12,13 +12,12 @@ import type {
   GraphNode,
   GraphEdge,
   QuestionResponse,
-  EvidenceItem,
 } from './types';
-import { Sidebar, ActiveView } from './components/Sidebar';
+import { Sidebar, MainTab } from './components/Sidebar';
 import { BrainChat } from './components/BrainChat';
 import { GraphCanvas } from './components/GraphCanvas';
 import { ExploreView } from './components/ExploreView';
-import { NodeInspector } from './components/NodeInspector';
+import { FlashcardModal } from './components/FlashcardModal';
 import { ConnectionModal } from './components/ConnectionModal';
 import { CypherModal } from './components/CypherModal';
 
@@ -29,18 +28,19 @@ export const App: React.FC = () => {
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>('proj-titan');
 
-  // Active view: 'chat' (Discord style) | 'graph' (n8n workflow style) | 'records' (catalog)
-  const [activeView, setActiveView] = useState<ActiveView>('chat');
+  // Main Tab: 'chat' (Primary Assistant) | 'flow' (Scratch Workflow Canvas) | 'deck' (Cards Deck)
+  const [activeTab, setActiveTab] = useState<MainTab>('chat');
 
   // Brain Q&A State
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
   const [currentResponse, setCurrentResponse] = useState<QuestionResponse | null>(null);
   const [highlightNodes, setHighlightNodes] = useState<string[]>([]);
   const [highlightEdges, setHighlightEdges] = useState<string[]>([]);
-  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
 
-  // Inspector & Modals State
-  const [inspectNodeId, setInspectNodeId] = useState<string | null>(null);
+  // Flashcard Modal State
+  const [flashcardNodeId, setFlashcardNodeId] = useState<string | null>(null);
+
+  // Tools Modals
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
   const [isCypherModalOpen, setIsCypherModalOpen] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -60,7 +60,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Initial load
+  // Initial load: trigger primary question
   useEffect(() => {
     loadGraphData(selectedProject);
     handleAskQuestion('Why is Project Titan delayed?');
@@ -68,7 +68,6 @@ export const App: React.FC = () => {
 
   const handleAskQuestion = async (query: string) => {
     setIsLoadingAnswer(true);
-    setSelectedEvidenceId(null);
     try {
       const response = await askQuestion(query, selectedProject || undefined);
       setCurrentResponse(response);
@@ -109,26 +108,10 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleSelectEvidence = (item: EvidenceItem) => {
-    setSelectedEvidenceId(item.entity_id);
-    setHighlightNodes([item.entity_id]);
-    setInspectNodeId(item.entity_id);
-  };
-
   const handleClearHighlight = () => {
     setHighlightNodes([]);
     setHighlightEdges([]);
-    setSelectedEvidenceId(null);
-    setInspectNodeId(null);
-  };
-
-  const handleOpenGraphView = (targetNodeId?: string) => {
-    if (targetNodeId) {
-      setInspectNodeId(targetNodeId);
-      setHighlightNodes([targetNodeId]);
-      setSelectedEvidenceId(targetNodeId);
-    }
-    setActiveView('graph');
+    setFlashcardNodeId(null);
   };
 
   const handleSeedData = async () => {
@@ -145,83 +128,72 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="discord-app-layout">
-      {/* 1. Left Discord-Style Channel Sidebar */}
+    <div className="scratch-app-layout">
+      {/* 1. Left Discord-Box Icon Rail */}
       <Sidebar
         config={config}
-        schema={schema}
-        activeView={activeView}
-        onSelectView={setActiveView}
-        selectedProject={selectedProject}
-        onSelectProject={handleSelectProject}
-        onQuickAsk={handleAskQuestion}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
         onOpenCypher={() => setIsCypherModalOpen(true)}
         onOpenSettings={() => setIsConnectionModalOpen(true)}
         onSeedData={handleSeedData}
         isSeeding={isSeeding}
       />
 
-      {/* 2. Main Workspace (Clean, Uncluttered View) */}
-      <main className="discord-main-viewport">
-        {activeView === 'chat' && (
+      {/* 2. Main Workspace Body */}
+      <main className="scratch-main-viewport">
+        {activeTab === 'chat' && (
           <BrainChat
             selectedProject={selectedProject}
+            onSelectProject={handleSelectProject}
             onAskQuestion={handleAskQuestion}
             isLoading={isLoadingAnswer}
             currentResponse={currentResponse}
-            selectedEvidenceId={selectedEvidenceId}
-            onSelectEvidence={handleSelectEvidence}
-            onInspectNode={(nodeId) => {
-              setInspectNodeId(nodeId);
-              setHighlightNodes([nodeId]);
-            }}
-            onOpenGraphView={handleOpenGraphView}
-            onClearHighlight={handleClearHighlight}
+            onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
+            onOpenFlowView={() => setActiveTab('flow')}
           />
         )}
 
-        {activeView === 'graph' && (
+        {activeTab === 'flow' && (
           <GraphCanvas
             nodes={nodes}
             edges={edges}
             highlightNodes={highlightNodes}
             highlightEdges={highlightEdges}
-            selectedNodeId={inspectNodeId}
-            onSelectNode={(nodeId) => setInspectNodeId(nodeId)}
+            selectedNodeId={flashcardNodeId}
+            onSelectNode={(nodeId) => setFlashcardNodeId(nodeId)}
             onClearHighlight={handleClearHighlight}
             selectedProject={selectedProject}
-            onBackToChat={() => setActiveView('chat')}
+            onBackToChat={() => setActiveTab('chat')}
+            onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
           />
         )}
 
-        {activeView === 'records' && (
+        {activeTab === 'deck' && (
           <ExploreView
             nodes={nodes}
             edges={edges}
             onSelectEntityInInvestigate={(entityId, projectId) => {
               if (projectId) setSelectedProject(projectId);
-              handleOpenGraphView(entityId);
+              setFlashcardNodeId(entityId);
             }}
             onAskAboutEntity={(entityTitle) => {
-              setActiveView('chat');
+              setActiveTab('chat');
               handleAskQuestion(`What is connected to "${entityTitle}"?`);
             }}
           />
         )}
       </main>
 
-      {/* Floating Contextual Node Inspector Drawer */}
-      <NodeInspector
-        nodeId={inspectNodeId}
+      {/* Interactive Expandable Flashcard Modal */}
+      <FlashcardModal
+        nodeId={flashcardNodeId}
         nodes={nodes}
         edges={edges}
-        onClose={() => setInspectNodeId(null)}
-        onSelectNode={(nodeId) => {
-          setInspectNodeId(nodeId);
-          setHighlightNodes([nodeId]);
-        }}
+        onClose={() => setFlashcardNodeId(null)}
+        onSelectNode={(nodeId) => setFlashcardNodeId(nodeId)}
         onAskAboutNode={(title) => {
-          setActiveView('chat');
+          setActiveTab('chat');
           handleAskQuestion(`Explain how "${title}" impacts project delays`);
         }}
       />
