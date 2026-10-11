@@ -88,7 +88,7 @@ export const CustomGraphNode = memo(({ data }: CustomNodeProps) => {
 
   return (
     <div
-      className={`n8n-cube-node ${isHighlighted ? 'is-highlighted' : ''} ${
+      className={`scratch-cube-node ${isHighlighted ? 'is-highlighted' : ''} ${
         isSelected ? 'is-selected' : ''
       } ${isDimmed ? 'is-dimmed' : ''}`}
       onClick={() => data.onSelect?.(data.id)}
@@ -98,39 +98,57 @@ export const CustomGraphNode = memo(({ data }: CustomNodeProps) => {
           : isSelected
           ? '#A855F7'
           : isBlocked
-          ? 'rgba(239, 68, 68, 0.5)'
-          : `${theme.border}40`,
+          ? 'rgba(239, 68, 68, 0.6)'
+          : `${theme.border}44`,
       }}
     >
-      <Handle type="target" position={Position.Left} className="n8n-cube-handle" />
+      <Handle type="target" position={Position.Left} className="scratch-node-handle" />
 
-      {/* Left Cube Badge */}
+      {/* Scratch Block Header Notch */}
       <div
-        className="cube-badge"
+        className="scratch-node-header"
         style={{
-          background: isBlocked ? 'rgba(239, 68, 68, 0.2)' : theme.bgBadge,
-          borderColor: isBlocked ? '#EF4444' : theme.color,
+          background: `linear-gradient(90deg, ${theme.color}25, transparent)`,
+          borderBottom: `1px solid ${theme.color}33`,
         }}
       >
-        <Icon size={14} color={isBlocked ? '#EF4444' : theme.color} />
+        <div
+          className="scratch-node-icon-box"
+          style={{
+            background: isBlocked ? 'rgba(239, 68, 68, 0.25)' : theme.bgBadge,
+            borderColor: isBlocked ? '#EF4444' : theme.color,
+          }}
+        >
+          <Icon size={12} color={isBlocked ? '#EF4444' : theme.color} />
+        </div>
+        <span className="scratch-node-category" style={{ color: theme.color }}>
+          {theme.category}
+        </span>
       </div>
 
-      {/* Center Details */}
-      <div className="cube-details">
-        <div className="cube-top-row">
-          <span className="cube-category-tag" style={{ color: theme.color }}>
-            {theme.category}
-          </span>
-          {isBlocked && (
-            <span className="cube-delay-pill">{delay ? `${delay}d` : 'BLOCKED'}</span>
-          )}
-        </div>
-        <div className="cube-title" title={title}>
+      {/* Square Center Body */}
+      <div className="scratch-node-body">
+        <div className="scratch-node-title" title={title}>
           {title}
         </div>
+
+        {/* Status or Metric pill */}
+        <div className="scratch-node-footer">
+          {isBlocked ? (
+            <span className="scratch-status-badge is-delayed">
+              {delay ? `+${delay}d Delay` : 'Blocked'}
+            </span>
+          ) : status ? (
+            <span className="scratch-status-badge is-status">{status}</span>
+          ) : properties.role ? (
+            <span className="scratch-status-badge is-role">{properties.role}</span>
+          ) : (
+            <span className="scratch-status-badge is-id">{data.id}</span>
+          )}
+        </div>
       </div>
 
-      <Handle type="source" position={Position.Right} className="n8n-cube-handle" />
+      <Handle type="source" position={Position.Right} className="scratch-node-handle" />
     </div>
   );
 });

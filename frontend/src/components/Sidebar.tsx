@@ -3,13 +3,14 @@ import {
   BrainCircuit,
   MessageSquare,
   Workflow,
+  Database,
   Terminal,
   RotateCw,
   Settings,
 } from 'lucide-react';
 import { AppConfig } from '../types';
 
-export type MainTab = 'chat' | 'flow';
+export type MainTab = 'chat' | 'flow' | 'database';
 
 interface SidebarProps {
   config: AppConfig | null;
@@ -46,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         className={`discord-box-btn ${activeTab === 'chat' ? 'is-active' : ''}`}
         onClick={() => onSelectTab('chat')}
-        title="Chat Brain (Assistant)"
+        title="Chat Brain (Single Assistant)"
       >
         <span className="pill-indicator" />
         <MessageSquare size={20} />
@@ -55,10 +56,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         className={`discord-box-btn ${activeTab === 'flow' ? 'is-active' : ''}`}
         onClick={() => onSelectTab('flow')}
-        title="Booklet Workflow & n8n Cube Connections"
+        title="Workflow Graph (n8n + Scratch Square Blocks)"
       >
         <span className="pill-indicator" />
         <Workflow size={20} />
+      </button>
+
+      <button
+        className={`discord-box-btn ${activeTab === 'database' ? 'is-active' : ''}`}
+        onClick={() => onSelectTab('database')}
+        title="Directory Database GUI (Browse & Edit Records)"
+      >
+        <span className="pill-indicator" />
+        <Database size={20} />
       </button>
 
       <div className="discord-rail-divider" />
