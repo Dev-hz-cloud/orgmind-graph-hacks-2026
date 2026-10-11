@@ -2,16 +2,14 @@ import React from 'react';
 import {
   BrainCircuit,
   MessageSquare,
-  Puzzle,
-  Layers,
+  Workflow,
   Terminal,
   RotateCw,
   Settings,
-  Sparkles
 } from 'lucide-react';
 import { AppConfig } from '../types';
 
-export type MainTab = 'chat' | 'flow' | 'deck';
+export type MainTab = 'chat' | 'flow';
 
 interface SidebarProps {
   config: AppConfig | null;
@@ -48,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         className={`discord-box-btn ${activeTab === 'chat' ? 'is-active' : ''}`}
         onClick={() => onSelectTab('chat')}
-        title="Chat Brain (Single Assistant Tab)"
+        title="Chat Brain (Assistant)"
       >
         <span className="pill-indicator" />
         <MessageSquare size={20} />
@@ -57,24 +55,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         className={`discord-box-btn ${activeTab === 'flow' ? 'is-active' : ''}`}
         onClick={() => onSelectTab('flow')}
-        title="Scratch Workflow Canvas"
+        title="Booklet Workflow & n8n Cube Connections"
       >
         <span className="pill-indicator" />
-        <Puzzle size={20} />
-      </button>
-
-      <button
-        className={`discord-box-btn ${activeTab === 'deck' ? 'is-active' : ''}`}
-        onClick={() => onSelectTab('deck')}
-        title="Flashcards Directory"
-      >
-        <span className="pill-indicator" />
-        <Layers size={20} />
+        <Workflow size={20} />
       </button>
 
       <div className="discord-rail-divider" />
 
-      {/* 3. Utilities */}
+      {/* 3. Developer & Seed Tools */}
       <button
         className="discord-box-btn tool-box"
         onClick={onOpenCypher}

@@ -21,10 +21,17 @@ import {
   ArrowRightLeft,
   ArrowUpDown,
   ArrowLeft,
-  Puzzle,
+  BookOpen,
+  FolderGit2,
+  Clock,
+  User,
+  Scale,
+  FileText,
+  ExternalLink,
+  ChevronRight,
   Sparkles
 } from 'lucide-react';
-import { GraphNode, GraphEdge } from '../types';
+import { GraphNode, GraphEdge, NodeLabel } from '../types';
 import { CustomGraphNode } from './CustomNode';
 
 const nodeTypes = {
@@ -57,8 +64,17 @@ const EDGE_COLORS: Record<string, string> = {
   MEMBER_OF: '#FB7185',
 };
 
-const NODE_WIDTH = 230;
-const NODE_HEIGHT = 76;
+const NODE_WIDTH = 190;
+const NODE_HEIGHT = 56;
+
+const CATEGORY_ICONS: Record<NodeLabel, React.FC<{ size: number; color?: string }>> = {
+  Project: FolderGit2,
+  Task: Clock,
+  Person: User,
+  Decision: Scale,
+  Document: FileText,
+  Team: FolderGit2,
+};
 
 function calculateDagreLayout(
   nodes: GraphNode[],
@@ -71,10 +87,10 @@ function calculateDagreLayout(
   g.setGraph({
     rankdir: direction,
     align: 'UL',
-    nodesep: 35,
-    ranksep: 80,
-    marginx: 40,
-    marginy: 40,
+    nodesep: 30,
+    ranksep: 75,
+    marginx: 35,
+    marginy: 35,
   });
 
   nodes.forEach((n) => {
@@ -124,6 +140,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [layoutDirection, setLayoutDirection] = useState<'LR' | 'TB'>('LR');
 
+  // Compute 1-hop neighborhood for selected node
   const neighborhood = useMemo(() => {
     if (!selectedNodeId) return { nodeIds: new Set<string>(), edgeIds: new Set<string>() };
 
@@ -142,8 +159,9 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     return { nodeIds, edgeIds };
   }, [selectedNodeId, rawEdges]);
 
-  const { flowNodes, flowEdges } = useMemo(() => {
-    const filteredRawNodes = rawNodes.filter((n) => {
+  // Directory filtered items
+  const directoryNodes = useMemo(() => {
+    return rawNodes.filter((n) => {
       if (filterType !== 'ALL' && n.label.toUpperCase() !== filterType) {
         return false;
       }
@@ -154,14 +172,17 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
       }
       return true;
     });
+  }, [rawNodes, filterType, searchQuery]);
 
-    const visibleNodeIds = new Set(filteredRawNodes.map((n) => n.id));
+  // Flow Nodes & Edges Generation
+  const { flowNodes, flowEdges } = useMemo(() => {
+    const visibleNodeIds = new Set(directoryNodes.map((n) => n.id));
     const isHighlightActive =
       highlightNodes.length > 0 || (selectedNodeId !== null && neighborhood.nodeIds.size > 0);
 
-    const positions = calculateDagreLayout(filteredRawNodes, rawEdges, layoutDirection);
+    const positions = calculateDagreLayout(directoryNodes, rawEdges, layoutDirection);
 
-    const generatedNodes: Node[] = filteredRawNodes.map((n) => {
+    const generatedNodes: Node[] = directoryNodes.map((n) => {
       const pos = positions[n.id] || { x: 0, y: 0 };
       const isPathHighlighted = highlightNodes.includes(n.id);
       const isNeighborHighlighted = selectedNodeId !== null && neighborhood.nodeIds.has(n.id);
@@ -183,7 +204,6 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           isDimmed,
           onSelect: (nodeId: string) => {
             onSelectNode(nodeId);
-            onOpenFlashcard?.(nodeId);
           },
         },
       };
@@ -201,8 +221,8 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         const isDimmed = isHighlightActive && !isHighlighted && !isHovered;
 
         const baseColor = EDGE_COLORS[e.rel] || '#94A3B8';
-        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(168, 85, 247, 0.25)';
-        const strokeWidth = isHighlighted || isHovered ? 2.6 : 1.4;
+        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(168, 85, 247, 0.28)';
+        const strokeWidth = isHighlighted || isHovered ? 2.5 : 1.3;
 
         const showLabel = isHighlighted || isHovered || (e.rel === 'BLOCKED_BY' && !isDimmed);
 
@@ -227,7 +247,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           },
           labelStyle: {
             fill: isHighlighted ? '#FFFFFF' : '#CBD5E1',
-            fontSize: 9.5,
+            fontSize: 9,
             fontWeight: 600,
             fontFamily: 'monospace',
           },
@@ -237,25 +257,22 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             stroke: isHighlighted ? baseColor : 'rgba(168, 85, 247, 0.3)',
             strokeWidth: 1,
           },
-          labelBgPadding: [5, 3] as [number, number],
+          labelBgPadding: [4, 3] as [number, number],
           labelBgBorderRadius: 4,
         };
       });
 
     return { flowNodes: generatedNodes, flowEdges: generatedEdges };
   }, [
-    rawNodes,
+    directoryNodes,
     rawEdges,
     highlightNodes,
     highlightEdges,
     selectedNodeId,
     neighborhood,
-    filterType,
-    searchQuery,
     hoveredEdgeId,
     layoutDirection,
     onSelectNode,
-    onOpenFlashcard,
   ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(flowNodes);
@@ -268,136 +285,187 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fitView({ padding: 0.2, duration: 400 });
+      fitView({ padding: 0.18, duration: 400 });
     }, 100);
     return () => clearTimeout(timer);
   }, [selectedProject, layoutDirection, fitView]);
 
   return (
-    <div className="scratch-canvas-container">
-      {/* Top Bar */}
-      <div className="scratch-canvas-toolbar">
-        <div className="toolbar-left">
-          {onBackToChat && (
-            <button className="btn-canvas-back" onClick={onBackToChat} title="Return to Chat Brain">
-              <ArrowLeft size={14} />
-              <span>Back to Chat</span>
-            </button>
-          )}
-
-          <div className="canvas-title-wrap">
-            <Puzzle size={16} className="text-pink" />
-            <span className="canvas-title">
-              Scratch Flow: {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', '') : 'ALL NODES'}
-            </span>
-            <span className="canvas-hint-pill">Click any block to open Flashcard</span>
+    <div className="booklet-workflow-workspace">
+      {/* ----------------------------------------------------
+          Left Side: Booklet Directory Index
+      ---------------------------------------------------- */}
+      <aside className="booklet-directory-panel">
+        <div className="directory-header">
+          <div className="directory-title-row">
+            <BookOpen size={16} className="text-pink" />
+            <h3 className="directory-title">Directory Index</h3>
+            <span className="directory-count">{directoryNodes.length} cards</span>
           </div>
-        </div>
 
-        {/* Filter Pills */}
-        <div className="canvas-filter-pills">
-          {['ALL', 'PROJECT', 'TASK', 'DECISION', 'PERSON', 'DOCUMENT'].map((type) => (
-            <button
-              key={type}
-              className={`canvas-pill ${filterType === type ? 'is-active' : ''}`}
-              onClick={() => setFilterType(type)}
-            >
-              {type === 'ALL' ? 'All Blocks' : `${type[0] + type.slice(1).toLowerCase()}s`}
-            </button>
-          ))}
-        </div>
-
-        {/* Right Tools */}
-        <div className="toolbar-right">
-          <button
-            className="btn-canvas-tool"
-            onClick={() => setLayoutDirection((prev) => (prev === 'LR' ? 'TB' : 'LR'))}
-            title="Toggle layout flow direction"
-          >
-            {layoutDirection === 'LR' ? <ArrowUpDown size={13} /> : <ArrowRightLeft size={13} />}
-            <span>{layoutDirection === 'LR' ? 'Vertical Flow' : 'Horizontal Flow'}</span>
-          </button>
-
-          <div className="canvas-search-wrap">
+          {/* Search Box */}
+          <div className="directory-search-box">
             <Search size={13} className="text-muted" />
             <input
               type="text"
-              placeholder="Search blocks..."
+              placeholder="Filter cards..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="canvas-search-input"
+              className="directory-search-input"
             />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="search-clear">
+                ×
+              </button>
+            )}
           </div>
 
-          {(highlightNodes.length > 0 || selectedNodeId !== null) && (
-            <button className="btn-canvas-tool btn-clear-focus" onClick={onClearHighlight}>
-              <RotateCcw size={13} />
-              <span>Clear Focus</span>
+          {/* Category Tabs */}
+          <div className="directory-categories-row">
+            {['ALL', 'PROJECT', 'TASK', 'PERSON', 'DECISION', 'DOCUMENT'].map((type) => (
+              <button
+                key={type}
+                className={`category-pill ${filterType === type ? 'is-active' : ''}`}
+                onClick={() => setFilterType(type)}
+              >
+                {type === 'ALL' ? 'All' : `${type[0] + type.slice(1).toLowerCase()}s`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Directory Items List */}
+        <div className="directory-cards-list">
+          {directoryNodes.map((n) => {
+            const isSelected = selectedNodeId === n.id;
+            const Icon = CATEGORY_ICONS[n.label] || FolderGit2;
+            const title = n.properties.name || n.properties.title || n.id;
+            const status = n.properties.status;
+            const delay = n.properties.delay_days;
+            const isBlocked = status === 'BLOCKED' || status === 'DELAYED';
+
+            return (
+              <div
+                key={n.id}
+                className={`directory-item-card ${isSelected ? 'is-selected' : ''}`}
+                onClick={() => onSelectNode(n.id)}
+              >
+                <div className="item-card-left">
+                  <div className="item-card-icon">
+                    <Icon size={13} />
+                  </div>
+                  <div className="item-card-text">
+                    <span className="item-card-title" title={title}>
+                      {title}
+                    </span>
+                    <span className="item-card-meta">
+                      {n.label} {status ? `· ${status}` : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="item-card-right">
+                  {isBlocked && (
+                    <span className="item-card-delay">{delay ? `${delay}d` : 'Blocked'}</span>
+                  )}
+                  {onOpenFlashcard && isSelected && (
+                    <button
+                      className="btn-flip-card"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenFlashcard(n.id);
+                      }}
+                      title="Open full Flashcard view"
+                    >
+                      <span>Flip</span>
+                      <ChevronRight size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+
+      {/* ----------------------------------------------------
+          Right Side: Simple n8n Cube Connections Canvas
+      ---------------------------------------------------- */}
+      <main className="n8n-cube-canvas-panel">
+        {/* Top Canvas Toolbar */}
+        <div className="cube-canvas-toolbar">
+          <div className="canvas-toolbar-left">
+            {onBackToChat && (
+              <button className="btn-canvas-back" onClick={onBackToChat} title="Return to Chat Brain">
+                <ArrowLeft size={14} />
+                <span>Back to Chat</span>
+              </button>
+            )}
+
+            <div className="canvas-flow-tag">
+              <Sparkles size={14} className="text-purple" />
+              <span>
+                Workflow: {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', '') : 'FULL GRAPH'}
+              </span>
+            </div>
+          </div>
+
+          <div className="canvas-toolbar-right">
+            <button
+              className="btn-canvas-tool"
+              onClick={() => setLayoutDirection((prev) => (prev === 'LR' ? 'TB' : 'LR'))}
+              title="Toggle flow layout direction"
+            >
+              {layoutDirection === 'LR' ? <ArrowUpDown size={13} /> : <ArrowRightLeft size={13} />}
+              <span>{layoutDirection === 'LR' ? 'Vertical' : 'Horizontal'}</span>
             </button>
-          )}
 
-          <button className="btn-canvas-tool" onClick={() => fitView({ padding: 0.2, duration: 400 })}>
-            <Maximize2 size={13} />
-            <span>Fit View</span>
-          </button>
-        </div>
-      </div>
+            {(highlightNodes.length > 0 || selectedNodeId !== null) && (
+              <button className="btn-canvas-tool btn-clear-focus" onClick={onClearHighlight}>
+                <RotateCcw size={13} />
+                <span>Clear Focus</span>
+              </button>
+            )}
 
-      {/* Canvas */}
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.2}
-        maxZoom={1.8}
-        proOptions={{ hideAttribution: true }}
-        onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
-        onEdgeMouseLeave={() => setHoveredEdgeId(null)}
-      >
-        <Background color="#1A1528" gap={26} size={1.2} />
-        <Controls className="scratch-controls" showInteractive={false} />
-        <MiniMap
-          nodeColor={(n) => {
-            const label = n.data?.label;
-            if (label === 'Project') return '#38BDF8';
-            if (label === 'Task') return '#F59E0B';
-            if (label === 'Person') return '#EC4899';
-            if (label === 'Decision') return '#A855F7';
-            if (label === 'Document') return '#06B6D4';
-            return '#64748B';
-          }}
-          className="scratch-minimap"
-          maskColor="rgba(8, 9, 14, 0.8)"
-        />
-      </ReactFlow>
+            <button className="btn-canvas-tool" onClick={() => fitView({ padding: 0.18, duration: 400 })}>
+              <Maximize2 size={13} />
+              <span>Fit View</span>
+            </button>
+          </div>
+        </div>
 
-      {/* Footer Legend */}
-      <div className="scratch-legend-bar">
-        <div className="legend-chip">
-          <span className="legend-dot" style={{ background: '#38BDF8' }} />
-          <span>Project</span>
-        </div>
-        <div className="legend-chip">
-          <span className="legend-dot" style={{ background: '#F59E0B' }} />
-          <span>Task</span>
-        </div>
-        <div className="legend-chip">
-          <span className="legend-dot" style={{ background: '#EC4899' }} />
-          <span>Person</span>
-        </div>
-        <div className="legend-chip">
-          <span className="legend-dot" style={{ background: '#A855F7' }} />
-          <span>Decision</span>
-        </div>
-        <div className="legend-chip">
-          <span className="legend-dot" style={{ background: '#06B6D4' }} />
-          <span>Document</span>
-        </div>
-      </div>
+        {/* React Flow Canvas */}
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.18 }}
+          minZoom={0.2}
+          maxZoom={1.8}
+          proOptions={{ hideAttribution: true }}
+          onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
+          onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+        >
+          <Background color="#121320" gap={24} size={1.2} />
+          <Controls className="n8n-cube-controls" showInteractive={false} />
+          <MiniMap
+            nodeColor={(n) => {
+              const label = n.data?.label;
+              if (label === 'Project') return '#38BDF8';
+              if (label === 'Task') return '#F59E0B';
+              if (label === 'Person') return '#EC4899';
+              if (label === 'Decision') return '#A855F7';
+              if (label === 'Document') return '#06B6D4';
+              return '#64748B';
+            }}
+            className="n8n-cube-minimap"
+            maskColor="rgba(8, 9, 14, 0.85)"
+          />
+        </ReactFlow>
+      </main>
     </div>
   );
 };

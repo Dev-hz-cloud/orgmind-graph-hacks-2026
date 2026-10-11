@@ -6,8 +6,7 @@ import {
   User,
   Users,
   FileText,
-  Scale,
-  Maximize2
+  Scale
 } from 'lucide-react';
 import { NodeLabel } from '../types';
 
@@ -24,63 +23,55 @@ interface CustomNodeProps {
   };
 }
 
-// Scratch Category Color Palette
-const SCRATCH_THEMES: Record<
+const CUBE_THEMES: Record<
   NodeLabel,
   {
-    gradient: string;
-    bgBlock: string;
+    color: string;
+    bgBadge: string;
     border: string;
-    accent: string;
     icon: React.FC<{ size: number; color?: string }>;
     category: string;
   }
 > = {
   Project: {
-    gradient: 'linear-gradient(135deg, #0284C7 0%, #38BDF8 100%)',
-    bgBlock: '#0C4A6E',
+    color: '#38BDF8',
+    bgBadge: 'rgba(56, 189, 248, 0.18)',
     border: '#38BDF8',
-    accent: '#38BDF8',
     icon: FolderGit2,
     category: 'PROJECT',
   },
   Task: {
-    gradient: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)',
-    bgBlock: '#78350F',
+    color: '#F59E0B',
+    bgBadge: 'rgba(245, 158, 11, 0.18)',
     border: '#F59E0B',
-    accent: '#F59E0B',
     icon: Clock,
     category: 'TASK',
   },
   Person: {
-    gradient: 'linear-gradient(135deg, #BE185D 0%, #EC4899 100%)',
-    bgBlock: '#831843',
+    color: '#EC4899',
+    bgBadge: 'rgba(236, 72, 153, 0.18)',
     border: '#EC4899',
-    accent: '#EC4899',
     icon: User,
-    category: 'MEMBER',
+    category: 'PERSON',
   },
   Decision: {
-    gradient: 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
-    bgBlock: '#581C87',
+    color: '#A855F7',
+    bgBadge: 'rgba(168, 85, 247, 0.18)',
     border: '#A855F7',
-    accent: '#A855F7',
     icon: Scale,
     category: 'DECISION',
   },
   Document: {
-    gradient: 'linear-gradient(135deg, #0891B2 0%, #22D3EE 100%)',
-    bgBlock: '#164E63',
-    border: '#22D3EE',
-    accent: '#22D3EE',
+    color: '#06B6D4',
+    bgBadge: 'rgba(6, 182, 212, 0.18)',
+    border: '#06B6D4',
     icon: FileText,
     category: 'DOCUMENT',
   },
   Team: {
-    gradient: 'linear-gradient(135deg, #E11D48 0%, #FB7185 100%)',
-    bgBlock: '#881337',
+    color: '#FB7185',
+    bgBadge: 'rgba(251, 113, 133, 0.18)',
     border: '#FB7185',
-    accent: '#FB7185',
     icon: Users,
     category: 'TEAM',
   },
@@ -88,75 +79,58 @@ const SCRATCH_THEMES: Record<
 
 export const CustomGraphNode = memo(({ data }: CustomNodeProps) => {
   const { label, title, properties, isHighlighted, isDimmed, isSelected } = data;
-  const theme = SCRATCH_THEMES[label] || SCRATCH_THEMES.Project;
+  const theme = CUBE_THEMES[label] || CUBE_THEMES.Project;
   const Icon = theme.icon;
 
   const status = properties.status;
   const delay = properties.delay_days;
   const isBlocked = status === 'BLOCKED' || status === 'DELAYED';
 
-  let subText = '';
-  if (label === 'Person') {
-    subText = properties.role || properties.email || '';
-  } else if (label === 'Task') {
-    subText = isBlocked
-      ? `${delay ? `${delay}d delay · ` : ''}Blocked`
-      : properties.due_date
-      ? `Due ${properties.due_date}`
-      : 'Active';
-  } else if (label === 'Decision') {
-    subText = properties.status === 'PENDING' ? 'Pending sign-off' : 'Approved';
-  } else if (label === 'Document') {
-    subText = properties.type || 'Specification';
-  } else if (label === 'Project') {
-    subText = `${properties.progress || 0}% complete`;
-  }
-
   return (
     <div
-      className={`scratch-node-card ${isHighlighted ? 'is-highlighted' : ''} ${
+      className={`n8n-cube-node ${isHighlighted ? 'is-highlighted' : ''} ${
         isSelected ? 'is-selected' : ''
       } ${isDimmed ? 'is-dimmed' : ''}`}
       onClick={() => data.onSelect?.(data.id)}
       style={{
-        borderColor: isHighlighted ? '#EC4899' : isSelected ? '#A855F7' : `${theme.border}50`,
+        borderColor: isHighlighted
+          ? '#EC4899'
+          : isSelected
+          ? '#A855F7'
+          : isBlocked
+          ? 'rgba(239, 68, 68, 0.5)'
+          : `${theme.border}40`,
       }}
     >
-      <Handle type="target" position={Position.Left} className="scratch-handle" />
+      <Handle type="target" position={Position.Left} className="n8n-cube-handle" />
 
-      {/* Left Icon Notch / Block */}
+      {/* Left Cube Badge */}
       <div
-        className="scratch-node-badge"
-        style={{ background: theme.gradient }}
+        className="cube-badge"
+        style={{
+          background: isBlocked ? 'rgba(239, 68, 68, 0.2)' : theme.bgBadge,
+          borderColor: isBlocked ? '#EF4444' : theme.color,
+        }}
       >
-        <Icon size={16} color="#FFFFFF" />
+        <Icon size={14} color={isBlocked ? '#EF4444' : theme.color} />
       </div>
 
-      {/* Content */}
-      <div className="scratch-node-content">
-        <div className="scratch-node-top">
-          <span className="scratch-node-cat" style={{ color: theme.accent }}>
+      {/* Center Details */}
+      <div className="cube-details">
+        <div className="cube-top-row">
+          <span className="cube-category-tag" style={{ color: theme.color }}>
             {theme.category}
           </span>
           {isBlocked && (
-            <span className="scratch-delay-tag">{delay ? `${delay}d` : 'BLOCKED'}</span>
+            <span className="cube-delay-pill">{delay ? `${delay}d` : 'BLOCKED'}</span>
           )}
         </div>
-        <div className="scratch-node-title" title={title}>
+        <div className="cube-title" title={title}>
           {title}
         </div>
-        {subText && (
-          <div className="scratch-node-sub" title={subText}>
-            {subText}
-          </div>
-        )}
       </div>
 
-      <div className="scratch-expand-hint" title="Click to open flashcard">
-        <Maximize2 size={11} />
-      </div>
-
-      <Handle type="source" position={Position.Right} className="scratch-handle" />
+      <Handle type="source" position={Position.Right} className="n8n-cube-handle" />
     </div>
   );
 });

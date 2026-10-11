@@ -16,7 +16,6 @@ import type {
 import { Sidebar, MainTab } from './components/Sidebar';
 import { BrainChat } from './components/BrainChat';
 import { GraphCanvas } from './components/GraphCanvas';
-import { ExploreView } from './components/ExploreView';
 import { FlashcardModal } from './components/FlashcardModal';
 import { ConnectionModal } from './components/ConnectionModal';
 import { CypherModal } from './components/CypherModal';
@@ -28,7 +27,7 @@ export const App: React.FC = () => {
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>('proj-titan');
 
-  // Main Tab: 'chat' (Primary Assistant) | 'flow' (Scratch Workflow Canvas) | 'deck' (Cards Deck)
+  // Main Tabs: 'chat' (Assistant) | 'flow' (Booklet Directory + n8n Cube Canvas)
   const [activeTab, setActiveTab] = useState<MainTab>('chat');
 
   // Brain Q&A State
@@ -166,21 +165,6 @@ export const App: React.FC = () => {
             selectedProject={selectedProject}
             onBackToChat={() => setActiveTab('chat')}
             onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
-          />
-        )}
-
-        {activeTab === 'deck' && (
-          <ExploreView
-            nodes={nodes}
-            edges={edges}
-            onSelectEntityInInvestigate={(entityId, projectId) => {
-              if (projectId) setSelectedProject(projectId);
-              setFlashcardNodeId(entityId);
-            }}
-            onAskAboutEntity={(entityTitle) => {
-              setActiveTab('chat');
-              handleAskQuestion(`What is connected to "${entityTitle}"?`);
-            }}
           />
         )}
       </main>
