@@ -1,218 +1,254 @@
 import React from 'react';
 import {
   BrainCircuit,
-  Search,
-  Database,
-  FolderGit2,
-  Settings2,
+  Hash,
   Sparkles,
-  Layers,
-  Compass,
-  Network
+  Zap,
+  BookOpen,
+  Terminal,
+  RotateCw,
+  Settings,
+  HelpCircle,
+  AlertTriangle,
+  Scale,
+  User,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { AppConfig, GraphSchema } from '../types';
 
-export type WorkspaceTab = 'investigate' | 'explore' | 'data';
+export type ActiveView = 'chat' | 'graph' | 'records';
 
 interface SidebarProps {
   config: AppConfig | null;
   schema: GraphSchema | null;
-  activeTab: WorkspaceTab;
-  onSelectTab: (tab: WorkspaceTab) => void;
+  activeView: ActiveView;
+  onSelectView: (view: ActiveView) => void;
   selectedProject: string | null;
   onSelectProject: (projectId: string | null) => void;
+  onQuickAsk: (question: string) => void;
+  onOpenCypher: () => void;
+  onOpenSettings: () => void;
+  onSeedData: () => void;
+  isSeeding: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   config,
   schema,
-  activeTab,
-  onSelectTab,
+  activeView,
+  onSelectView,
   selectedProject,
   onSelectProject,
+  onQuickAsk,
+  onOpenCypher,
+  onOpenSettings,
+  onSeedData,
+  isSeeding,
 }) => {
   const isLive = config?.mode === 'live' && config?.is_connected;
 
   const projects = [
-    {
-      id: 'proj-titan',
-      name: 'Project Titan',
-      code: 'TITAN',
-      status: 'delayed',
-      label: '18d delay',
-    },
-    {
-      id: 'proj-apollo',
-      name: 'Project Apollo',
-      code: 'APOLLO',
-      status: 'on_track',
-      label: 'On Track',
-    },
-    {
-      id: 'proj-mercury',
-      name: 'Project Mercury',
-      code: 'MERCURY',
-      status: 'at_risk',
-      label: '7d delay',
-    },
+    { id: 'proj-titan', name: 'project-titan', delay: '18d delay', isDelayed: true },
+    { id: 'proj-apollo', name: 'project-apollo', delay: 'On Track', isOnTrack: true },
+    { id: 'proj-mercury', name: 'project-mercury', delay: '7d delay', isRisk: true },
   ];
 
   return (
-    <aside className="sidebar">
-      {/* Brand Header */}
-      <div className="sidebar-header">
-        <div className="logo-badge">
-          <BrainCircuit size={22} />
+    <aside className="discord-sidebar">
+      {/* 1. Server Header (Discord Style) */}
+      <div className="discord-server-header">
+        <div className="discord-server-icon">
+          <BrainCircuit size={20} color="#FFFFFF" />
         </div>
-        <div className="logo-text">
-          <h1>OrgMind</h1>
-          <p>Company Brain · FalkorDB</p>
+        <div className="discord-server-info">
+          <div className="discord-server-name">
+            <span>OrgMind</span>
+            <ShieldCheck size={14} className="discord-verified-icon" />
+          </div>
+          <span className="discord-server-sub">FalkorDB Company Brain</span>
         </div>
       </div>
 
-      {/* Primary Workspace Navigation Tabs */}
-      <div className="sidebar-section">
-        <div className="section-label">
-          <span>Workspaces</span>
-          <Sparkles size={13} />
-        </div>
-
-        <button
-          className={`sidebar-nav-tab ${activeTab === 'investigate' ? 'is-active' : ''}`}
-          onClick={() => onSelectTab('investigate')}
-        >
-          <div className="tab-left">
-            <BrainCircuit size={16} />
-            <div className="tab-text">
-              <span className="tab-title">Investigate</span>
-              <span className="tab-sub">Q&A & Interactive Graph</span>
-            </div>
+      <div className="discord-channels-scroll">
+        {/* 2. Workspace Channels */}
+        <div className="discord-channel-group">
+          <div className="discord-group-header">
+            <span>VIEWS</span>
           </div>
-        </button>
 
-        <button
-          className={`sidebar-nav-tab ${activeTab === 'explore' ? 'is-active' : ''}`}
-          onClick={() => onSelectTab('explore')}
-        >
-          <div className="tab-left">
-            <Compass size={16} />
-            <div className="tab-text">
-              <span className="tab-title">Explore</span>
-              <span className="tab-sub">Company Knowledge Catalog</span>
-            </div>
-          </div>
-        </button>
-
-        <button
-          className={`sidebar-nav-tab ${activeTab === 'data' ? 'is-active' : ''}`}
-          onClick={() => onSelectTab('data')}
-        >
-          <div className="tab-left">
-            <Database size={16} />
-            <div className="tab-text">
-              <span className="tab-title">Data & Connections</span>
-              <span className="tab-sub">FalkorDB & Cypher Console</span>
-            </div>
-          </div>
-        </button>
-      </div>
-
-      {/* Projects Context Section (Always accessible) */}
-      <div className="sidebar-section">
-        <div className="section-label">
-          <span>Active Initiatives</span>
-          <FolderGit2 size={13} />
-        </div>
-
-        <button
-          className={`sidebar-item ${selectedProject === null ? 'active' : ''}`}
-          onClick={() => {
-            onSelectProject(null);
-            if (activeTab !== 'investigate') onSelectTab('investigate');
-          }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Layers size={14} /> All Initiatives
-          </span>
-          <span className="status-chip on_track" style={{ fontSize: '0.62rem' }}>
-            Full Graph
-          </span>
-        </button>
-
-        {projects.map((p) => (
           <button
-            key={p.id}
-            className={`sidebar-item ${selectedProject === p.id ? 'active' : ''}`}
+            className={`discord-channel-item ${activeView === 'chat' ? 'is-active' : ''}`}
+            onClick={() => onSelectView('chat')}
+          >
+            <div className="channel-item-left">
+              <span className="channel-icon-hash">#</span>
+              <span className="channel-name">investigation</span>
+            </div>
+            <span className="channel-badge-sub">Chat & Evidence</span>
+          </button>
+
+          <button
+            className={`discord-channel-item ${activeView === 'graph' ? 'is-active' : ''}`}
+            onClick={() => onSelectView('graph')}
+          >
+            <div className="channel-item-left">
+              <Zap size={14} className="channel-icon-n8n" />
+              <span className="channel-name">workflow-graph</span>
+            </div>
+            <span className="channel-badge-n8n">n8n View</span>
+          </button>
+
+          <button
+            className={`discord-channel-item ${activeView === 'records' ? 'is-active' : ''}`}
+            onClick={() => onSelectView('records')}
+          >
+            <div className="channel-item-left">
+              <BookOpen size={14} className="channel-icon-book" />
+              <span className="channel-name">company-records</span>
+            </div>
+          </button>
+        </div>
+
+        {/* 3. Project Channels */}
+        <div className="discord-channel-group">
+          <div className="discord-group-header">
+            <span>INITIATIVES</span>
+          </div>
+
+          <button
+            className={`discord-channel-item ${
+              selectedProject === null && activeView === 'chat' ? 'is-active' : ''
+            }`}
             onClick={() => {
-              onSelectProject(p.id);
-              if (activeTab !== 'investigate') onSelectTab('investigate');
+              onSelectProject(null);
+              onSelectView('chat');
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <FolderGit2 size={14} /> {p.name}
-            </span>
-            <span className={`status-chip ${p.status}`}>{p.label}</span>
+            <div className="channel-item-left">
+              <span className="channel-icon-hash">#</span>
+              <span className="channel-name">all-initiatives</span>
+            </div>
           </button>
-        ))}
+
+          {projects.map((p) => {
+            const isSelected = selectedProject === p.id && activeView === 'chat';
+            return (
+              <button
+                key={p.id}
+                className={`discord-channel-item ${isSelected ? 'is-active' : ''}`}
+                onClick={() => {
+                  onSelectProject(p.id);
+                  onSelectView('chat');
+                }}
+              >
+                <div className="channel-item-left">
+                  <span className="channel-icon-hash">#</span>
+                  <span className="channel-name">{p.name}</span>
+                </div>
+                <span
+                  className={`discord-status-pill ${
+                    p.isDelayed ? 'pill-red' : p.isOnTrack ? 'pill-green' : 'pill-yellow'
+                  }`}
+                >
+                  {p.delay}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 4. Quick Investigations (1-Click Questions) */}
+        <div className="discord-channel-group">
+          <div className="discord-group-header">
+            <span>QUICK QUESTIONS</span>
+          </div>
+
+          <button
+            className="discord-quick-btn"
+            onClick={() => {
+              onSelectView('chat');
+              onQuickAsk('Why is Project Titan delayed?');
+            }}
+          >
+            <AlertTriangle size={13} className="text-red" />
+            <span>Why is Titan delayed?</span>
+          </button>
+
+          <button
+            className="discord-quick-btn"
+            onClick={() => {
+              onSelectView('chat');
+              onQuickAsk('Which tasks are blocking this launch?');
+            }}
+          >
+            <Zap size={13} className="text-yellow" />
+            <span>Critical blockers</span>
+          </button>
+
+          <button
+            className="discord-quick-btn"
+            onClick={() => {
+              onSelectView('chat');
+              onQuickAsk('Which decisions are still pending?');
+            }}
+          >
+            <Scale size={13} className="text-purple" />
+            <span>Pending decisions</span>
+          </button>
+
+          <button
+            className="discord-quick-btn"
+            onClick={() => {
+              onSelectView('chat');
+              onQuickAsk('Who owns the blocking task?');
+            }}
+          >
+            <User size={13} className="text-green" />
+            <span>Blocker owners</span>
+          </button>
+        </div>
+
+        {/* 5. Database Tools */}
+        <div className="discord-channel-group">
+          <div className="discord-group-header">
+            <span>DATABASE TOOLS</span>
+          </div>
+
+          <button className="discord-quick-btn" onClick={onOpenCypher}>
+            <Terminal size={13} />
+            <span>Cypher Console</span>
+          </button>
+
+          <button className="discord-quick-btn" onClick={onSeedData} disabled={isSeeding}>
+            <RotateCw size={13} className={isSeeding ? 'animate-spin' : ''} />
+            <span>{isSeeding ? 'Seeding...' : 'Re-Seed Demo Graph'}</span>
+          </button>
+        </div>
       </div>
 
-      {/* Graph Telemetry Mini Card */}
-      {schema && (
-        <div className="sidebar-section" style={{ marginTop: 'auto', marginBottom: 0 }}>
-          <div className="section-label">
-            <span>Graph Telemetry</span>
-            <Network size={13} />
+      {/* 6. Discord User Bar (Bottom Profile & Connection Bar) */}
+      <div className="discord-user-bar">
+        <div className="discord-user-avatar-wrap">
+          <div className="discord-user-avatar">
+            <BrainCircuit size={16} />
           </div>
-          <div className="sidebar-telemetry-box">
-            <div className="telemetry-stat">
-              <span className="stat-name">Nodes</span>
-              <strong className="stat-num">{schema.total_nodes}</strong>
-            </div>
-            <div className="telemetry-stat">
-              <span className="stat-name">Edges</span>
-              <strong className="stat-num">{schema.total_edges}</strong>
-            </div>
-            <div className="telemetry-stat">
-              <span className="stat-name">Labels</span>
-              <strong className="stat-num">{Object.keys(schema.labels).length} types</strong>
-            </div>
-            <div className="telemetry-stat">
-              <span className="stat-name">Database</span>
-              <strong className="stat-num text-cyan" title={schema.graph_name}>
-                {schema.graph_name}
-              </strong>
-            </div>
-          </div>
+          <span className={`discord-status-dot ${isLive ? 'live' : 'demo'}`} />
         </div>
-      )}
 
-      {/* Database Connection Card */}
-      <div className="connection-card">
-        <div className="connection-indicator">
-          <span className={`pulse-dot ${isLive ? 'live' : 'demo'}`} />
-          <span style={{ color: isLive ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
-            {isLive ? 'Live FalkorDB Cloud' : 'Zero-Config Demo Mode'}
+        <div className="discord-user-names" onClick={onOpenSettings} title="Click to configure FalkorDB">
+          <span className="discord-user-tag">FalkorDB Brain</span>
+          <span className="discord-user-status">
+            {isLive ? 'Live Cloud' : 'Demo Mode (26 nodes)'}
           </span>
         </div>
-        <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 8 }}>
-          {isLive
-            ? `Connected to ${config?.falkordb_host}`
-            : 'Using embedded NovaTech knowledge graph'}
-        </p>
+
         <button
-          className="btn-secondary"
-          style={{
-            width: '100%',
-            padding: '6px 10px',
-            fontSize: '0.72rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-          }}
-          onClick={() => onSelectTab('data')}
+          className="discord-user-settings-btn"
+          onClick={onOpenSettings}
+          title="FalkorDB Connection Settings"
         >
-          <Settings2 size={13} /> Configure FalkorDB
+          <Settings size={16} />
         </button>
       </div>
     </aside>

@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import {
   Send,
-  Sparkles,
-  HelpCircle,
+  Zap,
+  RotateCcw,
   Code2,
-  Check,
   Copy,
+  Check,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
   User,
   FileText,
-  ArrowRight,
-  Maximize2,
-  Minimize2,
   ShieldCheck,
-  Network
+  ArrowRight,
+  ExternalLink,
+  MessageSquare,
+  Sparkles,
+  HelpCircle
 } from 'lucide-react';
 import { QuestionResponse, EvidenceItem } from '../types';
 
@@ -27,8 +28,8 @@ interface BrainChatProps {
   selectedEvidenceId: string | null;
   onSelectEvidence: (item: EvidenceItem) => void;
   onInspectNode: (nodeId: string) => void;
-  isGraphExpanded: boolean;
-  onToggleGraphExpanded: () => void;
+  onOpenGraphView: (targetNodeId?: string) => void;
+  onClearHighlight: () => void;
 }
 
 const SUGGESTIONS = [
@@ -48,13 +49,16 @@ export const BrainChat: React.FC<BrainChatProps> = ({
   selectedEvidenceId,
   onSelectEvidence,
   onInspectNode,
-  isGraphExpanded,
-  onToggleGraphExpanded,
+  onOpenGraphView,
+  onClearHighlight,
 }) => {
   const [inputQuery, setInputQuery] = useState('');
-  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [showCypher, setShowCypher] = useState(false);
   const [copiedCypher, setCopiedCypher] = useState(false);
-  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+
+  const channelName = selectedProject
+    ? selectedProject.replace('proj-', '')
+    : 'all-initiatives';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,405 +79,325 @@ export const BrainChat: React.FC<BrainChatProps> = ({
     }
   };
 
-  const toggleCardExpand = (id: string) => {
-    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
   const isLiveMode = currentResponse?.mode === 'live';
 
   return (
-    <section className="chat-panel">
-      {/* 1. Header with Mode Badge & Layout Controls */}
-      <div className="chat-header">
-        <div className="header-meta">
-          <div className="header-title-row">
-            <h2>Investigation Workspace</h2>
-            <span className="project-context-tag">
-              {selectedProject
-                ? selectedProject.toUpperCase().replace('PROJ-', 'PROJECT ')
-                : 'ALL INITIATIVES'}
-            </span>
-          </div>
-          {currentResponse && (
-            <div className={`mode-badge ${isLiveMode ? 'mode-live' : 'mode-demo'}`}>
-              <span className="mode-dot" />
-              <span>
-                {isLiveMode
-                  ? 'Live FalkorDB Cloud (Verified Database Records)'
-                  : 'Zero-Config Demo Mode (Embedded Mock Graph)'}
-              </span>
-            </div>
-          )}
+    <div className="discord-chat-workspace">
+      {/* 1. Discord Channel Top Bar */}
+      <div className="discord-top-bar">
+        <div className="discord-channel-title-wrap">
+          <span className="discord-top-hash">#</span>
+          <h2 className="discord-top-channel-name">{channelName}</h2>
+          <span className="discord-top-divider" />
+          <span className="discord-top-topic">
+            Root cause investigation & evidence tracing through FalkorDB
+          </span>
         </div>
 
-        <button
-          className="btn-icon-toggle"
-          onClick={onToggleGraphExpanded}
-          title={isGraphExpanded ? 'Restore split workspace' : 'Expand Q&A workspace'}
-        >
-          {isGraphExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          <span>{isGraphExpanded ? 'Split View' : 'Focus Q&A'}</span>
-        </button>
+        <div className="discord-top-actions">
+          {/* Prominent n8n Workflow Graph Button */}
+          <button
+            className="btn-discord-n8n"
+            onClick={() => onOpenGraphView()}
+            title="Open full interactive workflow canvas (n8n design)"
+          >
+            <Zap size={14} />
+            <span>View Flow Graph</span>
+          </button>
+
+          <button
+            className="btn-discord-action"
+            onClick={onClearHighlight}
+            title="Reset highlight and node selection"
+          >
+            <RotateCcw size={14} />
+          </button>
+        </div>
       </div>
 
-      {/* 2. Prominent Question Input Bar */}
-      <div className="query-input-container">
-        <form onSubmit={handleSubmit} className="query-form">
+      {/* 2. Discord Message Feed */}
+      <div className="discord-message-feed">
+        {/* Welcome Intro Message */}
+        <div className="discord-welcome-card">
+          <div className="welcome-hash-circle">
+            <span className="welcome-hash">#</span>
+          </div>
+          <h3 className="welcome-title">Welcome to #{channelName}!</h3>
+          <p className="welcome-desc">
+            This is the start of your OrgMind investigation channel for{' '}
+            <strong>{channelName}</strong>. Ask any question below to trace real graph evidence, or
+            click <strong>"View Flow Graph"</strong> above to see the n8n-style workflow canvas.
+          </p>
+        </div>
+
+        {/* Loading Indicator */}
+        {isLoading && (
+          <div className="discord-message-row bot-row loading-row">
+            <div className="discord-avatar bot-avatar">
+              <Sparkles size={18} color="#FFFFFF" />
+            </div>
+            <div className="discord-message-content">
+              <div className="discord-message-author-line">
+                <span className="discord-bot-name">OrgMind</span>
+                <span className="discord-bot-tag">BOT</span>
+                <span className="discord-timestamp">Just now</span>
+              </div>
+              <div className="discord-loading-bubble">
+                <span className="loading-dot" />
+                <span className="loading-dot" />
+                <span className="loading-dot" />
+                <span className="loading-status-text">
+                  Executing Cypher queries and traversing dependency paths in FalkorDB...
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Conversation Answer */}
+        {!isLoading && currentResponse && (
+          <>
+            {/* User Message */}
+            <div className="discord-message-row user-row">
+              <div className="discord-avatar user-avatar">
+                <span>You</span>
+              </div>
+              <div className="discord-message-content">
+                <div className="discord-message-author-line">
+                  <span className="discord-author-name">You</span>
+                  <span className="discord-timestamp">Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="discord-message-text">{currentResponse.query}</div>
+              </div>
+            </div>
+
+            {/* Bot Response Message with Discord Embed */}
+            <div className="discord-message-row bot-row">
+              <div className="discord-avatar bot-avatar">
+                <Sparkles size={18} color="#FFFFFF" />
+              </div>
+              <div className="discord-message-content">
+                <div className="discord-message-author-line">
+                  <span className="discord-bot-name">OrgMind</span>
+                  <span className="discord-bot-tag">BOT</span>
+                  <span className="discord-timestamp">Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className={`discord-mode-pill ${isLiveMode ? 'mode-live' : 'mode-demo'}`}>
+                    {isLiveMode ? 'Live FalkorDB' : 'Demo Mode'}
+                  </span>
+                </div>
+
+                {/* Primary Discord Embed: Direct Answer & Stats */}
+                <div className="discord-embed-card">
+                  <div className="embed-header-row">
+                    <div className="embed-title-badge">
+                      <ShieldCheck size={14} color="#10B981" />
+                      <span>Executive Summary</span>
+                    </div>
+                    <span className="embed-verified-tag">100% Graph Corroborated</span>
+                  </div>
+
+                  <div className="embed-direct-answer">
+                    {currentResponse.direct_answer ? (
+                      <p>{currentResponse.direct_answer}</p>
+                    ) : (
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: currentResponse.answer
+                            .replace(/^### (.*$)/gim, '<strong>$1</strong>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\n\n/g, '<br/><br/>'),
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Summary Metric Badges */}
+                  {currentResponse.summary_stats && (
+                    <div className="embed-metrics-row">
+                      <div className="embed-metric-pill metric-red">
+                        <span className="metric-label">Critical Blockers:</span>
+                        <strong className="metric-val">{currentResponse.summary_stats.critical_blockers}</strong>
+                      </div>
+                      <div className="embed-metric-pill metric-amber">
+                        <span className="metric-label">Estimated Delay:</span>
+                        <strong className="metric-val">{currentResponse.summary_stats.total_delay_days}d</strong>
+                      </div>
+                      <div className="embed-metric-pill metric-purple">
+                        <span className="metric-label">Pending Decisions:</span>
+                        <strong className="metric-val">{currentResponse.summary_stats.pending_decisions_count}</strong>
+                      </div>
+                      <div className="embed-metric-pill metric-cyan">
+                        <span className="metric-label">Evidence Docs:</span>
+                        <strong className="metric-val">{currentResponse.summary_stats.supporting_docs_count}</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Causal Flow Chain (n8n Node Breadcrumbs) */}
+                  {currentResponse.causal_chain && currentResponse.causal_chain.length > 0 && (
+                    <div className="embed-causal-flow">
+                      <div className="causal-flow-title">
+                        <span>Causal Dependency Chain</span>
+                        <button
+                          className="btn-flow-link"
+                          onClick={() => onOpenGraphView(currentResponse.causal_chain?.[0]?.id)}
+                        >
+                          <Zap size={11} />
+                          <span>Open in Flow Graph ↗</span>
+                        </button>
+                      </div>
+
+                      <div className="n8n-chain-nodes">
+                        {currentResponse.causal_chain.map((step, idx) => (
+                          <React.Fragment key={step.id}>
+                            <div
+                              className={`n8n-chain-step ${
+                                selectedEvidenceId === step.id ? 'is-selected' : ''
+                              }`}
+                              onClick={() => onInspectNode(step.id)}
+                              title={`Inspect ${step.title}`}
+                            >
+                              <span className="step-tag">{step.label}</span>
+                              <span className="step-name">{step.title}</span>
+                            </div>
+                            {step.rel && (
+                              <div className="n8n-chain-arrow">
+                                <span>-[{step.rel}]-&gt;</span>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Blocker Cards */}
+                  {currentResponse.blockers && currentResponse.blockers.length > 0 && (
+                    <div className="embed-blockers-list">
+                      <div className="blockers-list-heading">
+                        <AlertTriangle size={13} color="#EF4444" />
+                        <span>Active Blocking Records ({currentResponse.blockers.length})</span>
+                      </div>
+
+                      {currentResponse.blockers.map((b) => (
+                        <div key={b.id} className="discord-blocker-subcard">
+                          <div className="subcard-header">
+                            <div className="subcard-title-wrap">
+                              <span className="priority-pill">{b.priority}</span>
+                              <h4 className="subcard-title">{b.title}</h4>
+                            </div>
+                            <span className="delay-badge">{b.delay_days}d delay</span>
+                          </div>
+
+                          <div className="subcard-meta">
+                            <User size={12} className="text-muted" />
+                            <span>Owner: </span>
+                            <strong>{b.owner}</strong>
+                            {b.owner_role && <span className="text-muted"> ({b.owner_role})</span>}
+                          </div>
+
+                          <div className="subcard-reason">
+                            <span className="reason-tag">Evidence:</span>
+                            <p>{b.reason}</p>
+                          </div>
+
+                          {b.decision && (
+                            <div className="subcard-extra">
+                              <span className="extra-key">Blocking Decision:</span>
+                              <span className="extra-val">{b.decision}</span>
+                            </div>
+                          )}
+
+                          <div className="subcard-actions">
+                            <button
+                              className="btn-subcard-inspect"
+                              onClick={() => onInspectNode(b.id)}
+                            >
+                              <span>Inspect Properties</span>
+                            </button>
+                            <button
+                              className="btn-subcard-graph"
+                              onClick={() => onOpenGraphView(b.id)}
+                            >
+                              <Zap size={12} />
+                              <span>Focus in Graph ↗</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Collapsible Cypher Query Accordion */}
+                  <div className="embed-cypher-accordion">
+                    <button
+                      className="cypher-accordion-btn"
+                      onClick={() => setShowCypher(!showCypher)}
+                    >
+                      <div className="accordion-left">
+                        <Code2 size={13} />
+                        <span>Underlying FalkorDB Cypher Query</span>
+                      </div>
+                      {showCypher ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+
+                    {showCypher && (
+                      <div className="cypher-accordion-body">
+                        <div className="cypher-code-header">
+                          <span>CYPHER</span>
+                          <button className="btn-copy-code" onClick={handleCopyCypher}>
+                            {copiedCypher ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                            <span>{copiedCypher ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                        <pre className="cypher-code-block">{currentResponse.cypher}</pre>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 3. Discord Bottom Chat Input Bar */}
+      <div className="discord-input-container">
+        {/* Suggestion Chips */}
+        <div className="discord-suggestion-row">
+          {SUGGESTIONS.map((s, idx) => (
+            <button
+              key={idx}
+              className="discord-suggest-pill"
+              onClick={() => handleSuggestionClick(s)}
+              disabled={isLoading}
+            >
+              <span>{s}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="discord-input-box">
           <input
             type="text"
-            className="query-input"
-            placeholder="Ask anything (e.g. 'Why is Project Titan delayed?', 'Who owns the blocker?')..."
+            className="discord-text-input"
+            placeholder={`Message #${channelName} (or ask why delayed)...`}
             value={inputQuery}
             onChange={(e) => setInputQuery(e.target.value)}
             disabled={isLoading}
           />
           <button
             type="submit"
-            className="query-submit-btn"
+            className="discord-send-btn"
             disabled={!inputQuery.trim() || isLoading}
-            title="Ask Company Brain (Enter)"
+            title="Send query (Enter)"
           >
             <Send size={15} />
           </button>
         </form>
-
-        {/* Compact Suggested Query Chips */}
-        <div className="suggestion-chips-row">
-          {SUGGESTIONS.map((s, idx) => (
-            <button
-              key={idx}
-              className="suggestion-chip"
-              onClick={() => handleSuggestionClick(s)}
-              disabled={isLoading}
-            >
-              <ArrowRight size={11} className="chip-arrow" />
-              <span>{s}</span>
-            </button>
-          ))}
-        </div>
       </div>
-
-      {/* 3. Main Conversation & Answer Content Area */}
-      <div className="chat-scroll-area">
-        {/* Loading State */}
-        {isLoading && (
-          <div className="loading-card">
-            <div className="loading-pulse-ring" />
-            <div className="loading-text">
-              <h4>Tracing Knowledge Graph Paths...</h4>
-              <p>Executing Cypher queries and evaluating causal dependency chains.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Answer Content */}
-        {!isLoading && currentResponse && (
-          <div className="answer-wrapper">
-            {/* User Question Bubble */}
-            <div className="user-query-bubble">
-              <span className="query-lead">Question</span>
-              <p>{currentResponse.query}</p>
-            </div>
-
-            {/* Direct Answer Headline Card */}
-            <div className="direct-answer-card">
-              <div className="direct-answer-header">
-                <div className="answer-status-pill">
-                  <ShieldCheck size={14} />
-                  <span>Direct Answer</span>
-                </div>
-                <span className="confidence-pill">100% Graph Corroborated</span>
-              </div>
-
-              <div className="direct-answer-text">
-                {currentResponse.direct_answer ? (
-                  <p>{currentResponse.direct_answer}</p>
-                ) : (
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: currentResponse.answer
-                        .replace(/^### (.*$)/gim, '<strong>$1</strong>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\n\n/g, '<br/><br/>'),
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Summary Metrics */}
-            {currentResponse.summary_stats && (
-              <div className="summary-metrics-grid">
-                <div className="metric-card metric-critical">
-                  <span className="metric-label">Critical Blockers</span>
-                  <strong className="metric-value">
-                    {currentResponse.summary_stats.critical_blockers}
-                  </strong>
-                  <span className="metric-sub">Active blocking paths</span>
-                </div>
-                <div className="metric-card metric-delay">
-                  <span className="metric-label">Estimated Delay</span>
-                  <strong className="metric-value">
-                    {currentResponse.summary_stats.total_delay_days}d
-                  </strong>
-                  <span className="metric-sub">Cumulative impact</span>
-                </div>
-                <div className="metric-card metric-decision">
-                  <span className="metric-label">Pending Decisions</span>
-                  <strong className="metric-value">
-                    {currentResponse.summary_stats.pending_decisions_count}
-                  </strong>
-                  <span className="metric-sub">Executive sign-offs</span>
-                </div>
-                <div className="metric-card metric-evidence">
-                  <span className="metric-label">Supporting Evidence</span>
-                  <strong className="metric-value">
-                    {currentResponse.summary_stats.supporting_docs_count}
-                  </strong>
-                  <span className="metric-sub">Verified records</span>
-                </div>
-              </div>
-            )}
-
-            {/* Causal Relationship Chain (Clickable Breadcrumb Path) */}
-            {currentResponse.causal_chain && currentResponse.causal_chain.length > 0 && (
-              <div className="causal-chain-section">
-                <div className="section-mini-heading">
-                  <Network size={13} />
-                  <span>Causal Graph Path (Click any step to inspect & highlight in canvas):</span>
-                </div>
-                <div className="chain-breadcrumbs">
-                  {currentResponse.causal_chain.map((step, idx) => (
-                    <React.Fragment key={step.id}>
-                      <button
-                        className={`chain-step-pill ${
-                          selectedEvidenceId === step.id ? 'is-selected' : ''
-                        }`}
-                        onClick={() => onInspectNode(step.id)}
-                        title={`Click to inspect ${step.title} in graph`}
-                      >
-                        <span className="step-label">{step.label}</span>
-                        <span className="step-title">{step.title}</span>
-                      </button>
-                      {step.rel && (
-                        <span className="chain-rel-arrow">
-                          <span className="rel-name">-[{step.rel}]-&gt;</span>
-                        </span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Individual Expandable Blocker Cards */}
-            {currentResponse.blockers && currentResponse.blockers.length > 0 && (
-              <div className="blockers-section">
-                <div className="section-mini-heading">
-                  <AlertTriangle size={13} />
-                  <span>
-                    Active Blocker Analysis ({currentResponse.blockers.length} Records)
-                  </span>
-                </div>
-
-                {currentResponse.blockers.map((blocker) => {
-                  const isExpanded = !!expandedCards[blocker.id];
-                  const isSelected = selectedEvidenceId === blocker.id;
-
-                  return (
-                    <div
-                      key={blocker.id}
-                      className={`blocker-card ${isSelected ? 'is-selected' : ''}`}
-                      onClick={() => onInspectNode(blocker.id)}
-                    >
-                      <div className="blocker-card-header">
-                        <div className="blocker-header-left">
-                          <span className="blocker-priority-badge priority-critical">
-                            {blocker.priority}
-                          </span>
-                          <h4 className="blocker-title">{blocker.title}</h4>
-                        </div>
-                        <span className="blocker-delay-tag">
-                          <AlertTriangle size={12} /> {blocker.delay_days}d delay
-                        </span>
-                      </div>
-
-                      <div className="blocker-meta-row">
-                        <div className="meta-item">
-                          <User size={13} className="text-muted" />
-                          <span>Owner: </span>
-                          <strong>{blocker.owner}</strong>
-                          {blocker.owner_role && (
-                            <span className="text-muted"> ({blocker.owner_role})</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="blocker-reason-box">
-                        <span className="reason-label">Graph Evidence:</span>
-                        <p>{blocker.reason}</p>
-                      </div>
-
-                      {/* Expandable Technical Context */}
-                      {isExpanded && (
-                        <div className="blocker-expanded-content">
-                          {blocker.decision && (
-                            <div className="expanded-field">
-                              <span className="field-name">Blocking Decision:</span>
-                              <span className="field-value">
-                                <strong>{blocker.decision}</strong>
-                                {blocker.decision_owner && ` · Owned by ${blocker.decision_owner}`}
-                              </span>
-                            </div>
-                          )}
-
-                          {blocker.docs && blocker.docs.length > 0 && (
-                            <div className="expanded-field">
-                              <span className="field-name">Linked Documents:</span>
-                              <div className="docs-tag-list">
-                                {blocker.docs.map((d, dIdx) => (
-                                  <span key={dIdx} className="doc-pill">
-                                    <FileText size={11} /> {d}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="blocker-card-footer">
-                        <button
-                          type="button"
-                          className="btn-card-action"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleCardExpand(blocker.id);
-                          }}
-                        >
-                          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                          <span>{isExpanded ? 'Hide Details' : 'Expand Details'}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-card-action highlight-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onInspectNode(blocker.id);
-                          }}
-                        >
-                          <Sparkles size={13} />
-                          <span>Focus in Graph</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Standard Evidence Items List (if present and no blocker cards or for general queries) */}
-            {(!currentResponse.blockers || currentResponse.blockers.length === 0) &&
-              currentResponse.evidence &&
-              currentResponse.evidence.length > 0 && (
-                <div className="blockers-section">
-                  <div className="section-mini-heading">
-                    <Sparkles size={13} />
-                    <span>Connected Evidence Records ({currentResponse.evidence.length})</span>
-                  </div>
-
-                  {currentResponse.evidence.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`blocker-card ${
-                        selectedEvidenceId === item.entity_id ? 'is-selected' : ''
-                      }`}
-                      onClick={() => onSelectEvidence(item)}
-                    >
-                      <div className="blocker-card-header">
-                        <div className="blocker-header-left">
-                          <span className="blocker-priority-badge priority-high">
-                            {item.label}
-                          </span>
-                          <h4 className="blocker-title">{item.title}</h4>
-                        </div>
-                      </div>
-                      <div className="blocker-reason-box">
-                        <p>{item.summary}</p>
-                      </div>
-                      <div className="blocker-card-footer">
-                        <button
-                          type="button"
-                          className="btn-card-action highlight-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectEvidence(item);
-                          }}
-                        >
-                          <Sparkles size={13} />
-                          <span>Focus in Graph</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            {/* Collapsible Technical Details: Cypher Query */}
-            <div className="technical-details-container">
-              <button
-                className="technical-details-toggle"
-                onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-              >
-                <div className="toggle-left">
-                  <Code2 size={14} />
-                  <span>Technical Details: FalkorDB Cypher Query & Execution</span>
-                </div>
-                {showTechnicalDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-
-              {showTechnicalDetails && (
-                <div className="technical-content-body">
-                  <div className="cypher-header-bar">
-                    <span className="cypher-syntax-tag">CYPHER (PARAMETERIZED)</span>
-                    <button
-                      onClick={handleCopyCypher}
-                      className="cypher-copy-btn"
-                      title="Copy Cypher query to clipboard"
-                    >
-                      {copiedCypher ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
-                      <span>{copiedCypher ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                  <pre className="cypher-code-block">{currentResponse.cypher}</pre>
-                  {Object.keys(currentResponse.cypher_params || {}).length > 0 && (
-                    <div className="cypher-params-row">
-                      <span className="params-label">Query Parameters:</span>
-                      <code>{JSON.stringify(currentResponse.cypher_params)}</code>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!isLoading && !currentResponse && (
-          <div className="empty-state-card">
-            <div className="empty-icon-box">
-              <HelpCircle size={28} color="var(--accent-indigo)" />
-            </div>
-            <h3>Company Brain Ready</h3>
-            <p>
-              Ask any question about projects, blocking dependencies, pending decisions, or team
-              owners to trace verified evidence across the FalkorDB knowledge graph.
-            </p>
-          </div>
-        )}
-      </div>
-    </section>
+    </div>
   );
 };
 

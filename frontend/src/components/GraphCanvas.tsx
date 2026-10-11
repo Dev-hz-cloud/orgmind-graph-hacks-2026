@@ -20,7 +20,9 @@ import {
   Filter,
   ArrowRightLeft,
   ArrowUpDown,
-  Sparkles,
+  ArrowLeft,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { GraphNode, GraphEdge } from '../types';
 import { CustomGraphNode } from './CustomNode';
@@ -38,9 +40,9 @@ interface GraphCanvasProps {
   onSelectNode: (nodeId: string | null) => void;
   onClearHighlight: () => void;
   selectedProject: string | null;
+  onBackToChat?: () => void;
 }
 
-// Low-contrast default edges, clear restrained highlighted edges
 const EDGE_COLORS: Record<string, string> = {
   BLOCKED_BY: '#EF4444',
   DEPENDS_ON: '#A78BFA',
@@ -54,13 +56,9 @@ const EDGE_COLORS: Record<string, string> = {
   MEMBER_OF: '#FB7185',
 };
 
-const NODE_WIDTH = 250;
-const NODE_HEIGHT = 110;
+const NODE_WIDTH = 240;
+const NODE_HEIGHT = 80;
 
-/**
- * Calculates dynamic directed graph coordinates using Dagre.
- * Replaces hardcoded positioning with proper rank & order hierarchy.
- */
 function calculateDagreLayout(
   nodes: GraphNode[],
   edges: GraphEdge[],
@@ -72,8 +70,8 @@ function calculateDagreLayout(
   g.setGraph({
     rankdir: direction,
     align: 'UL',
-    nodesep: 45,
-    ranksep: 85,
+    nodesep: 40,
+    ranksep: 90,
     marginx: 40,
     marginy: 40,
   });
@@ -116,6 +114,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   onSelectNode,
   onClearHighlight,
   selectedProject,
+  onBackToChat,
 }) => {
   const { fitView } = useReactFlow();
   const [filterType, setFilterType] = useState<string>('ALL');
@@ -203,10 +202,9 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         const isDimmed = isHighlightActive && !isHighlighted && !isHovered;
 
         const baseColor = EDGE_COLORS[e.rel] || '#94A3B8';
-        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(148, 163, 184, 0.22)';
-        const strokeWidth = isHighlighted || isHovered ? 2.4 : 1.2;
+        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(148, 163, 184, 0.25)';
+        const strokeWidth = isHighlighted || isHovered ? 2.5 : 1.4;
 
-        // Show label if highlighted, hovered, or a critical blocker edge
         const showLabel = isHighlighted || isHovered || (e.rel === 'BLOCKED_BY' && !isDimmed);
 
         return {
@@ -268,56 +266,67 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     setEdges(flowEdges);
   }, [flowNodes, flowEdges, setNodes, setEdges]);
 
-  // Auto-fit on project change, direction change, or initial load
+  // Auto-fit on load, direction switch, or project change
   useEffect(() => {
     const timer = setTimeout(() => {
-      fitView({ padding: 0.18, duration: 400 });
-    }, 80);
+      fitView({ padding: 0.2, duration: 400 });
+    }, 100);
     return () => clearTimeout(timer);
   }, [selectedProject, layoutDirection, fitView]);
 
   return (
-    <div className="graph-wrapper">
-      {/* Floating Toolbar with Filters & Layout Direction */}
-      <div className="graph-toolbar">
-        {/* Category Filters */}
-        <div className="toolbar-section">
-          <span className="toolbar-label">
-            <Filter size={12} />
-            <span>Filter</span>
-          </span>
-          <div className="filter-pill-group">
-            {['ALL', 'PROJECT', 'TASK', 'DECISION', 'PERSON', 'DOCUMENT'].map((type) => (
-              <button
-                key={type}
-                className={`filter-pill ${filterType === type ? 'is-active' : ''}`}
-                onClick={() => setFilterType(type)}
-              >
-                {type === 'ALL' ? 'All' : `${type[0] + type.slice(1).toLowerCase()}s`}
-              </button>
-            ))}
+    <div className="n8n-graph-container">
+      {/* n8n Workflow Top Navigation Bar */}
+      <div className="n8n-toolbar">
+        <div className="n8n-toolbar-left">
+          {onBackToChat && (
+            <button className="btn-n8n-back" onClick={onBackToChat} title="Return to Investigation Chat">
+              <ArrowLeft size={14} />
+              <span>Back to Chat</span>
+            </button>
+          )}
+
+          <div className="n8n-workflow-title">
+            <Zap size={14} color="#6366F1" />
+            <span className="workflow-name">
+              Workflow: {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', 'PROJECT ') : 'ALL INITIATIVES'}
+            </span>
+            <span className="workflow-count-badge">{flowNodes.length} nodes</span>
           </div>
         </div>
 
-        {/* Layout Orientation & Search */}
-        <div className="toolbar-section">
+        {/* Filter Chips */}
+        <div className="n8n-filter-pills">
+          {['ALL', 'PROJECT', 'TASK', 'DECISION', 'PERSON', 'DOCUMENT'].map((type) => (
+            <button
+              key={type}
+              className={`n8n-pill ${filterType === type ? 'is-active' : ''}`}
+              onClick={() => setFilterType(type)}
+            >
+              {type === 'ALL' ? 'All' : `${type[0] + type.slice(1).toLowerCase()}s`}
+            </button>
+          ))}
+        </div>
+
+        {/* Actions & Search */}
+        <div className="n8n-toolbar-right">
           <button
-            className="btn-toolbar"
+            className="btn-n8n-tool"
             onClick={() => setLayoutDirection((prev) => (prev === 'LR' ? 'TB' : 'LR'))}
-            title={`Switch to ${layoutDirection === 'LR' ? 'Top-to-Bottom' : 'Left-to-Right'} layout`}
+            title="Toggle orientation"
           >
-            {layoutDirection === 'LR' ? <ArrowUpDown size={12} /> : <ArrowRightLeft size={12} />}
-            <span>{layoutDirection === 'LR' ? 'Vertical Layout' : 'Horizontal Flow'}</span>
+            {layoutDirection === 'LR' ? <ArrowUpDown size={13} /> : <ArrowRightLeft size={13} />}
+            <span>{layoutDirection === 'LR' ? 'Vertical' : 'Horizontal'}</span>
           </button>
 
-          <div className="graph-search-box">
+          <div className="n8n-search-input-wrap">
             <Search size={13} className="text-muted" />
             <input
               type="text"
-              placeholder="Find node in graph..."
+              placeholder="Search nodes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="graph-search-input"
+              className="n8n-search-input"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery('')} className="search-clear-btn">
@@ -328,27 +337,27 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
 
           {(highlightNodes.length > 0 || selectedNodeId !== null) && (
             <button
-              className="btn-toolbar btn-highlight-active"
+              className="btn-n8n-tool btn-focus-clear"
               onClick={onClearHighlight}
-              title="Reset path and selection highlights"
+              title="Clear active focus"
             >
-              <RotateCcw size={12} />
+              <RotateCcw size={13} />
               <span>Clear Focus</span>
             </button>
           )}
 
           <button
-            className="btn-toolbar"
-            onClick={() => fitView({ padding: 0.18, duration: 400 })}
-            title="Fit graph to canvas"
+            className="btn-n8n-tool"
+            onClick={() => fitView({ padding: 0.2, duration: 400 })}
+            title="Fit to view"
           >
-            <Maximize2 size={12} />
+            <Maximize2 size={13} />
             <span>Fit View</span>
           </button>
         </div>
       </div>
 
-      {/* React Flow Canvas */}
+      {/* React Flow n8n Canvas */}
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -356,15 +365,15 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.18 }}
-        minZoom={0.15}
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.2}
         maxZoom={1.8}
         proOptions={{ hideAttribution: true }}
         onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdgeId(null)}
       >
-        <Background color="#1A2234" gap={28} size={1} />
-        <Controls className="graph-controls" showInteractive={false} />
+        <Background color="#1E2333" gap={24} size={1.2} />
+        <Controls className="n8n-controls" showInteractive={false} />
         <MiniMap
           nodeColor={(n) => {
             const label = n.data?.label;
@@ -375,13 +384,13 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             if (label === 'Document') return '#06B6D4';
             return '#64748B';
           }}
-          className="graph-minimap"
-          maskColor="rgba(6, 8, 15, 0.75)"
+          className="n8n-minimap"
+          maskColor="rgba(8, 10, 18, 0.75)"
         />
       </ReactFlow>
 
-      {/* Legend */}
-      <div className="graph-bottom-legend">
+      {/* Legend Footer */}
+      <div className="n8n-legend-bar">
         <div className="legend-chip">
           <span className="legend-dot" style={{ background: '#38BDF8' }} />
           <span>Project</span>
@@ -402,7 +411,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           <span className="legend-dot" style={{ background: '#10B981' }} />
           <span>Person</span>
         </div>
-        <div className="legend-chip legend-separator">
+        <div className="legend-chip">
           <span style={{ color: '#EF4444', fontWeight: 700 }}>╌╌</span>
           <span>BLOCKED_BY</span>
         </div>

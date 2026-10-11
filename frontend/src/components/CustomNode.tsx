@@ -25,155 +25,125 @@ interface CustomNodeProps {
   };
 }
 
-const LABEL_THEME: Record<
+const LABEL_CONFIG: Record<
   NodeLabel,
-  { accent: string; badgeBg: string; badgeColor: string; icon: React.FC<{ size: number; color?: string }> }
+  {
+    color: string;
+    bgColor: string;
+    icon: React.FC<{ size: number; color?: string }>;
+    tag: string;
+  }
 > = {
   Project: {
-    accent: '#38BDF8',
-    badgeBg: 'rgba(56, 189, 248, 0.12)',
-    badgeColor: '#38BDF8',
+    color: '#38BDF8',
+    bgColor: 'rgba(56, 189, 248, 0.15)',
     icon: FolderGit2,
+    tag: 'PROJECT',
   },
   Task: {
-    accent: '#F59E0B',
-    badgeBg: 'rgba(245, 158, 11, 0.12)',
-    badgeColor: '#F59E0B',
+    color: '#F59E0B',
+    bgColor: 'rgba(245, 158, 11, 0.15)',
     icon: Clock,
+    tag: 'TASK',
   },
   Person: {
-    accent: '#10B981',
-    badgeBg: 'rgba(16, 185, 129, 0.12)',
-    badgeColor: '#10B981',
+    color: '#10B981',
+    bgColor: 'rgba(16, 185, 129, 0.15)',
     icon: User,
+    tag: 'PERSON',
   },
   Decision: {
-    accent: '#8B5CF6',
-    badgeBg: 'rgba(139, 92, 246, 0.12)',
-    badgeColor: '#A78BFA',
+    color: '#8B5CF6',
+    bgColor: 'rgba(139, 92, 246, 0.15)',
     icon: Scale,
+    tag: 'DECISION',
   },
   Document: {
-    accent: '#06B6D4',
-    badgeBg: 'rgba(6, 182, 212, 0.12)',
-    badgeColor: '#22D3EE',
+    color: '#06B6D4',
+    bgColor: 'rgba(6, 182, 212, 0.15)',
     icon: FileText,
+    tag: 'DOCUMENT',
   },
   Team: {
-    accent: '#F43F5E',
-    badgeBg: 'rgba(244, 63, 94, 0.12)',
-    badgeColor: '#FB7185',
+    color: '#FB7185',
+    bgColor: 'rgba(251, 113, 133, 0.15)',
     icon: Users,
+    tag: 'TEAM',
   },
 };
 
 export const CustomGraphNode = memo(({ data }: CustomNodeProps) => {
   const { label, title, properties, isHighlighted, isDimmed, isSelected } = data;
-  const theme = LABEL_THEME[label] || LABEL_THEME.Project;
-  const Icon = theme.icon;
+  const cfg = LABEL_CONFIG[label] || LABEL_CONFIG.Project;
+  const Icon = cfg.icon;
 
   const status = properties.status;
   const delay = properties.delay_days;
-  const priority = properties.priority;
+  const isBlocked = status === 'BLOCKED' || status === 'DELAYED';
 
-  // Determine left accent stripe
-  let accentColor = theme.accent;
-  if (status === 'BLOCKED' || status === 'DELAYED') {
-    accentColor = '#EF4444';
-  }
-
-  // Refined, high-contrast status badge
-  let statusBadge = null;
-  if (status === 'BLOCKED') {
-    statusBadge = (
-      <span className="node-status-badge status-blocked">
-        <AlertTriangle size={10} /> Blocked {delay ? `(${delay}d)` : ''}
-      </span>
-    );
-  } else if (status === 'DELAYED') {
-    statusBadge = (
-      <span className="node-status-badge status-delayed">
-        <AlertTriangle size={10} /> {delay}d delay
-      </span>
-    );
-  } else if (status === 'ON_TRACK' || status === 'APPROVED') {
-    statusBadge = (
-      <span className="node-status-badge status-ok">
-        <CheckCircle2 size={10} /> {status === 'APPROVED' ? 'Approved' : 'On Track'}
-      </span>
-    );
-  } else if (status === 'PENDING') {
-    statusBadge = (
-      <span className="node-status-badge status-pending">
-        <Clock size={10} /> Pending
-      </span>
-    );
-  } else if (status === 'IN_PROGRESS') {
-    statusBadge = (
-      <span className="node-status-badge status-progress">
-        In Progress
-      </span>
-    );
-  }
-
-  // Meaningful context snippet
-  let contextSnippet = '';
+  // Subtitle snippet
+  let subText = '';
   if (label === 'Person') {
-    contextSnippet = properties.role ? `${properties.role} · ${properties.team || ''}` : properties.email || '';
+    subText = properties.role || properties.email || '';
   } else if (label === 'Task') {
-    contextSnippet = properties.blocker_reason || (properties.due_date ? `Due ${properties.due_date}` : '');
+    subText = isBlocked ? `${delay ? `${delay}d delay · ` : ''}Blocked` : properties.due_date ? `Due ${properties.due_date}` : 'Active';
   } else if (label === 'Decision') {
-    contextSnippet = properties.impact || properties.rationale || '';
+    subText = properties.status === 'PENDING' ? 'Pending sign-off' : 'Approved';
   } else if (label === 'Document') {
-    contextSnippet = properties.type ? `${properties.type}: ${properties.summary || ''}` : properties.summary || '';
+    subText = properties.type || 'Specification';
   } else if (label === 'Project') {
-    contextSnippet = `${properties.progress || 0}% progress · Target ${properties.target_date || 'N/A'}`;
+    subText = `${properties.progress || 0}% progress · Target Nov 15`;
   }
 
   return (
     <div
-      className={`node-card ${isHighlighted ? 'is-highlighted' : ''} ${isSelected ? 'is-selected' : ''} ${isDimmed ? 'is-dimmed' : ''}`}
-      style={{ borderLeftColor: accentColor }}
+      className={`n8n-node-card ${isHighlighted ? 'is-highlighted' : ''} ${
+        isSelected ? 'is-selected' : ''
+      } ${isDimmed ? 'is-dimmed' : ''}`}
       onClick={() => data.onSelect?.(data.id)}
     >
-      {/* Target connection point (left & top) */}
-      <Handle type="target" position={Position.Left} className="node-handle" />
-      <Handle type="target" position={Position.Top} className="node-handle" id="top" />
+      {/* Target handle */}
+      <Handle type="target" position={Position.Left} className="n8n-handle" />
 
-      {/* Header with Type & Status */}
-      <div className="node-card-header">
-        <span
-          className="node-category-pill"
-          style={{ background: theme.badgeBg, color: theme.badgeColor }}
-        >
-          <Icon size={11} />
-          <span>{label}</span>
-        </span>
-        {statusBadge}
+      {/* Left Icon Square */}
+      <div
+        className="n8n-node-icon"
+        style={{
+          background: isBlocked ? 'rgba(239, 68, 68, 0.18)' : cfg.bgColor,
+          borderColor: isBlocked ? 'rgba(239, 68, 68, 0.4)' : `${cfg.color}40`,
+        }}
+      >
+        <Icon size={18} color={isBlocked ? '#EF4444' : cfg.color} />
       </div>
 
-      {/* Node Title */}
-      <div className="node-card-title" title={title}>
-        {title}
+      {/* Center Details */}
+      <div className="n8n-node-details">
+        <div className="n8n-node-header">
+          <span className="n8n-node-type" style={{ color: cfg.color }}>
+            {cfg.tag}
+          </span>
+          {status && (
+            <span
+              className={`n8n-status-dot ${
+                isBlocked ? 'status-red' : status === 'APPROVED' || status === 'ON_TRACK' ? 'status-green' : 'status-yellow'
+              }`}
+            />
+          )}
+        </div>
+        <div className="n8n-node-title" title={title}>
+          {title}
+        </div>
+        {subText && (
+          <div className="n8n-node-sub" title={subText}>
+            {subText}
+          </div>
+        )}
       </div>
 
-      {/* Node Snippet Context */}
-      {contextSnippet && (
-        <div className="node-card-snippet" title={contextSnippet}>
-          {contextSnippet}
-        </div>
-      )}
-
-      {/* Priority or Metadata Footer if critical */}
-      {priority && priority === 'CRITICAL' && (
-        <div className="node-card-footer">
-          <span className="node-priority-chip">CRITICAL PRIORITY</span>
-        </div>
-      )}
-
-      {/* Source connection point (right & bottom) */}
-      <Handle type="source" position={Position.Right} className="node-handle" />
-      <Handle type="source" position={Position.Bottom} className="node-handle" id="bottom" />
+      {/* Source handle */}
+      <Handle type="source" position={Position.Right} className="n8n-handle" />
     </div>
   );
 });
+
+export default CustomGraphNode;
