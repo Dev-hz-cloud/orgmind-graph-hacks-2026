@@ -9,16 +9,13 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
-  Clock,
   User,
   FileText,
-  Scale,
   ArrowRight,
   Maximize2,
   Minimize2,
   ShieldCheck,
-  ShieldAlert,
-  Info
+  Network
 } from 'lucide-react';
 import { QuestionResponse, EvidenceItem } from '../types';
 
@@ -90,9 +87,11 @@ export const BrainChat: React.FC<BrainChatProps> = ({
       <div className="chat-header">
         <div className="header-meta">
           <div className="header-title-row">
-            <h2>Company Brain</h2>
+            <h2>Investigation Workspace</h2>
             <span className="project-context-tag">
-              {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', '') : 'ALL INITIATIVES'}
+              {selectedProject
+                ? selectedProject.toUpperCase().replace('PROJ-', 'PROJECT ')
+                : 'ALL INITIATIVES'}
             </span>
           </div>
           {currentResponse && (
@@ -112,7 +111,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
           onClick={onToggleGraphExpanded}
           title={isGraphExpanded ? 'Restore split workspace' : 'Expand Q&A workspace'}
         >
-          {isGraphExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+          {isGraphExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           <span>{isGraphExpanded ? 'Split View' : 'Focus Q&A'}</span>
         </button>
       </div>
@@ -187,61 +186,71 @@ export const BrainChat: React.FC<BrainChatProps> = ({
               </div>
 
               <div className="direct-answer-text">
-                {currentResponse.direct_answer || (
-                  <p>
-                    <strong>Project Titan is delayed by 18 days.</strong> The core deployment of API
-                    Gateway v2 is blocked by SOC2 telemetry boundary sign-off, which is waiting on
-                    executive Decision DEC-2024-08 from Elena Rostova.
-                  </p>
+                {currentResponse.direct_answer ? (
+                  <p>{currentResponse.direct_answer}</p>
+                ) : (
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: currentResponse.answer
+                        .replace(/^### (.*$)/gim, '<strong>$1</strong>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\n\n/g, '<br/><br/>'),
+                    }}
+                  />
                 )}
               </div>
             </div>
 
-            {/* Blocker & Delay Summary Metrics */}
-            <div className="summary-metrics-grid">
-              <div className="metric-card metric-critical">
-                <span className="metric-label">Critical Blockers</span>
-                <strong className="metric-value">
-                  {currentResponse.summary_stats?.critical_blockers ?? 1}
-                </strong>
-                <span className="metric-sub">Gateway deployment</span>
+            {/* Summary Metrics */}
+            {currentResponse.summary_stats && (
+              <div className="summary-metrics-grid">
+                <div className="metric-card metric-critical">
+                  <span className="metric-label">Critical Blockers</span>
+                  <strong className="metric-value">
+                    {currentResponse.summary_stats.critical_blockers}
+                  </strong>
+                  <span className="metric-sub">Active blocking paths</span>
+                </div>
+                <div className="metric-card metric-delay">
+                  <span className="metric-label">Estimated Delay</span>
+                  <strong className="metric-value">
+                    {currentResponse.summary_stats.total_delay_days}d
+                  </strong>
+                  <span className="metric-sub">Cumulative impact</span>
+                </div>
+                <div className="metric-card metric-decision">
+                  <span className="metric-label">Pending Decisions</span>
+                  <strong className="metric-value">
+                    {currentResponse.summary_stats.pending_decisions_count}
+                  </strong>
+                  <span className="metric-sub">Executive sign-offs</span>
+                </div>
+                <div className="metric-card metric-evidence">
+                  <span className="metric-label">Supporting Evidence</span>
+                  <strong className="metric-value">
+                    {currentResponse.summary_stats.supporting_docs_count}
+                  </strong>
+                  <span className="metric-sub">Verified records</span>
+                </div>
               </div>
-              <div className="metric-card metric-delay">
-                <span className="metric-label">Estimated Delay</span>
-                <strong className="metric-value">
-                  {currentResponse.summary_stats?.total_delay_days ?? 18}d
-                </strong>
-                <span className="metric-sub">Launch: Nov 15, 2026</span>
-              </div>
-              <div className="metric-card metric-decision">
-                <span className="metric-label">Pending Decisions</span>
-                <strong className="metric-value">
-                  {currentResponse.summary_stats?.pending_decisions_count ?? 1}
-                </strong>
-                <span className="metric-sub">DEC-2024-08</span>
-              </div>
-              <div className="metric-card metric-evidence">
-                <span className="metric-label">Supporting Evidence</span>
-                <strong className="metric-value">
-                  {currentResponse.summary_stats?.supporting_docs_count ?? 2}
-                </strong>
-                <span className="metric-sub">SEC-09 & ADR-08</span>
-              </div>
-            </div>
+            )}
 
             {/* Causal Relationship Chain (Clickable Breadcrumb Path) */}
             {currentResponse.causal_chain && currentResponse.causal_chain.length > 0 && (
               <div className="causal-chain-section">
                 <div className="section-mini-heading">
-                  <span>Causal Graph Path (Click any step to inspect):</span>
+                  <Network size={13} />
+                  <span>Causal Graph Path (Click any step to inspect & highlight in canvas):</span>
                 </div>
                 <div className="chain-breadcrumbs">
                   {currentResponse.causal_chain.map((step, idx) => (
                     <React.Fragment key={step.id}>
                       <button
-                        className={`chain-step-pill ${selectedEvidenceId === step.id ? 'is-selected' : ''}`}
+                        className={`chain-step-pill ${
+                          selectedEvidenceId === step.id ? 'is-selected' : ''
+                        }`}
                         onClick={() => onInspectNode(step.id)}
-                        title={`Click to focus ${step.title} in graph`}
+                        title={`Click to inspect ${step.title} in graph`}
                       >
                         <span className="step-label">{step.label}</span>
                         <span className="step-title">{step.title}</span>
@@ -258,135 +267,158 @@ export const BrainChat: React.FC<BrainChatProps> = ({
             )}
 
             {/* Individual Expandable Blocker Cards */}
-            <div className="blockers-section">
-              <div className="section-mini-heading">
-                <span>Active Blocker Analysis ({currentResponse.blockers?.length || 2} Records)</span>
-              </div>
+            {currentResponse.blockers && currentResponse.blockers.length > 0 && (
+              <div className="blockers-section">
+                <div className="section-mini-heading">
+                  <AlertTriangle size={13} />
+                  <span>
+                    Active Blocker Analysis ({currentResponse.blockers.length} Records)
+                  </span>
+                </div>
 
-              {(currentResponse.blockers || [
-                {
-                  id: 'task-deploy-gateway',
-                  title: 'Deploy Multi-Region API Gateway v2',
-                  status: 'BLOCKED',
-                  priority: 'CRITICAL',
-                  delay_days: 18,
-                  owner: 'Marcus Vance',
-                  owner_role: 'Staff Infrastructure Architect',
-                  reason: 'Blocked by security sign-off on cross-border data telemetry and SOC2 boundary definition.',
-                  decision: null,
-                  decision_owner: null,
-                  docs: ['RFC-104: Service Mesh Ingress Architecture'],
-                },
-                {
-                  id: 'task-sec-signoff',
-                  title: 'SOC2 Telemetry Boundary Sign-Off',
-                  status: 'BLOCKED',
-                  priority: 'HIGH',
-                  delay_days: 14,
-                  owner: 'Aisha Patel',
-                  owner_role: 'Senior Compliance Officer',
-                  reason: 'Waiting on executive sign-off for Decision DEC-2024-08 regarding EU customer telemetry residency.',
-                  decision: 'DEC-2024-08: EU Telemetry & Observability Data Residency Scope',
-                  decision_owner: 'Elena Rostova (VP of Engineering)',
-                  docs: ['SEC-2024-Q3 Audit Gap Report', 'ADR-08: Data Residency Architecture'],
-                },
-              ]).map((blocker) => {
-                const isExpanded = !!expandedCards[blocker.id];
-                const isSelected = selectedEvidenceId === blocker.id;
+                {currentResponse.blockers.map((blocker) => {
+                  const isExpanded = !!expandedCards[blocker.id];
+                  const isSelected = selectedEvidenceId === blocker.id;
 
-                return (
-                  <div
-                    key={blocker.id}
-                    className={`blocker-card ${isSelected ? 'is-selected' : ''}`}
-                    onClick={() => {
-                      onInspectNode(blocker.id);
-                    }}
-                  >
-                    <div className="blocker-card-header">
-                      <div className="blocker-header-left">
-                        <span className="blocker-priority-badge priority-critical">
-                          {blocker.priority}
+                  return (
+                    <div
+                      key={blocker.id}
+                      className={`blocker-card ${isSelected ? 'is-selected' : ''}`}
+                      onClick={() => onInspectNode(blocker.id)}
+                    >
+                      <div className="blocker-card-header">
+                        <div className="blocker-header-left">
+                          <span className="blocker-priority-badge priority-critical">
+                            {blocker.priority}
+                          </span>
+                          <h4 className="blocker-title">{blocker.title}</h4>
+                        </div>
+                        <span className="blocker-delay-tag">
+                          <AlertTriangle size={12} /> {blocker.delay_days}d delay
                         </span>
-                        <h4 className="blocker-title">{blocker.title}</h4>
                       </div>
-                      <span className="blocker-delay-tag">
-                        <AlertTriangle size={12} /> {blocker.delay_days}d delay
-                      </span>
-                    </div>
 
-                    <div className="blocker-meta-row">
-                      <div className="meta-item">
-                        <User size={13} className="text-muted" />
-                        <span>Owner: </span>
-                        <strong>{blocker.owner}</strong>
-                        {blocker.owner_role && (
-                          <span className="text-muted"> ({blocker.owner_role})</span>
-                        )}
+                      <div className="blocker-meta-row">
+                        <div className="meta-item">
+                          <User size={13} className="text-muted" />
+                          <span>Owner: </span>
+                          <strong>{blocker.owner}</strong>
+                          {blocker.owner_role && (
+                            <span className="text-muted"> ({blocker.owner_role})</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="blocker-reason-box">
-                      <span className="reason-label">Graph Evidence:</span>
-                      <p>{blocker.reason}</p>
-                    </div>
+                      <div className="blocker-reason-box">
+                        <span className="reason-label">Graph Evidence:</span>
+                        <p>{blocker.reason}</p>
+                      </div>
 
-                    {/* Expandable Technical Context */}
-                    {isExpanded && (
-                      <div className="blocker-expanded-content">
-                        {blocker.decision && (
-                          <div className="expanded-field">
-                            <span className="field-name">Blocking Decision:</span>
-                            <span className="field-value">
-                              <strong>{blocker.decision}</strong>
-                              {blocker.decision_owner && ` · Owned by ${blocker.decision_owner}`}
-                            </span>
-                          </div>
-                        )}
-
-                        {blocker.docs && blocker.docs.length > 0 && (
-                          <div className="expanded-field">
-                            <span className="field-name">Linked Documents:</span>
-                            <div className="docs-tag-list">
-                              {blocker.docs.map((d, dIdx) => (
-                                <span key={dIdx} className="doc-pill">
-                                  <FileText size={11} /> {d}
-                                </span>
-                              ))}
+                      {/* Expandable Technical Context */}
+                      {isExpanded && (
+                        <div className="blocker-expanded-content">
+                          {blocker.decision && (
+                            <div className="expanded-field">
+                              <span className="field-name">Blocking Decision:</span>
+                              <span className="field-value">
+                                <strong>{blocker.decision}</strong>
+                                {blocker.decision_owner && ` · Owned by ${blocker.decision_owner}`}
+                              </span>
                             </div>
-                          </div>
-                        )}
+                          )}
+
+                          {blocker.docs && blocker.docs.length > 0 && (
+                            <div className="expanded-field">
+                              <span className="field-name">Linked Documents:</span>
+                              <div className="docs-tag-list">
+                                {blocker.docs.map((d, dIdx) => (
+                                  <span key={dIdx} className="doc-pill">
+                                    <FileText size={11} /> {d}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="blocker-card-footer">
+                        <button
+                          type="button"
+                          className="btn-card-action"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleCardExpand(blocker.id);
+                          }}
+                        >
+                          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          <span>{isExpanded ? 'Hide Details' : 'Expand Details'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn-card-action highlight-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onInspectNode(blocker.id);
+                          }}
+                        >
+                          <Sparkles size={13} />
+                          <span>Focus in Graph</span>
+                        </button>
                       </div>
-                    )}
-
-                    <div className="blocker-card-footer">
-                      <button
-                        type="button"
-                        className="btn-card-action"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleCardExpand(blocker.id);
-                        }}
-                      >
-                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                        <span>{isExpanded ? 'Hide Details' : 'Expand Details'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn-card-action highlight-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onInspectNode(blocker.id);
-                        }}
-                      >
-                        <Sparkles size={13} />
-                        <span>Focus in Graph</span>
-                      </button>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Standard Evidence Items List (if present and no blocker cards or for general queries) */}
+            {(!currentResponse.blockers || currentResponse.blockers.length === 0) &&
+              currentResponse.evidence &&
+              currentResponse.evidence.length > 0 && (
+                <div className="blockers-section">
+                  <div className="section-mini-heading">
+                    <Sparkles size={13} />
+                    <span>Connected Evidence Records ({currentResponse.evidence.length})</span>
                   </div>
-                );
-              })}
-            </div>
+
+                  {currentResponse.evidence.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`blocker-card ${
+                        selectedEvidenceId === item.entity_id ? 'is-selected' : ''
+                      }`}
+                      onClick={() => onSelectEvidence(item)}
+                    >
+                      <div className="blocker-card-header">
+                        <div className="blocker-header-left">
+                          <span className="blocker-priority-badge priority-high">
+                            {item.label}
+                          </span>
+                          <h4 className="blocker-title">{item.title}</h4>
+                        </div>
+                      </div>
+                      <div className="blocker-reason-box">
+                        <p>{item.summary}</p>
+                      </div>
+                      <div className="blocker-card-footer">
+                        <button
+                          type="button"
+                          className="btn-card-action highlight-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectEvidence(item);
+                          }}
+                        >
+                          <Sparkles size={13} />
+                          <span>Focus in Graph</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
             {/* Collapsible Technical Details: Cypher Query */}
             <div className="technical-details-container">
@@ -444,3 +476,5 @@ export const BrainChat: React.FC<BrainChatProps> = ({
     </section>
   );
 };
+
+export default BrainChat;

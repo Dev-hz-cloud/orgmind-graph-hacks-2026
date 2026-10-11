@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -12,17 +12,17 @@ import {
   useReactFlow,
   ReactFlowProvider,
 } from '@xyflow/react';
+import dagre from '@dagrejs/dagre';
 import {
   Search,
   RotateCcw,
   Maximize2,
   Filter,
-  Layers,
+  ArrowRightLeft,
+  ArrowUpDown,
   Sparkles,
-  Eye,
-  EyeOff
 } from 'lucide-react';
-import { GraphNode, GraphEdge, NodeLabel } from '../types';
+import { GraphNode, GraphEdge } from '../types';
 import { CustomGraphNode } from './CustomNode';
 
 const nodeTypes = {
@@ -54,6 +54,59 @@ const EDGE_COLORS: Record<string, string> = {
   MEMBER_OF: '#FB7185',
 };
 
+const NODE_WIDTH = 250;
+const NODE_HEIGHT = 110;
+
+/**
+ * Calculates dynamic directed graph coordinates using Dagre.
+ * Replaces hardcoded positioning with proper rank & order hierarchy.
+ */
+function calculateDagreLayout(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  direction: 'LR' | 'TB' = 'LR'
+): Record<string, { x: number; y: number }> {
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+
+  g.setGraph({
+    rankdir: direction,
+    align: 'UL',
+    nodesep: 45,
+    ranksep: 85,
+    marginx: 40,
+    marginy: 40,
+  });
+
+  nodes.forEach((n) => {
+    g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  });
+
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  edges.forEach((e) => {
+    if (nodeIds.has(e.src) && nodeIds.has(e.dst)) {
+      g.setEdge(e.src, e.dst);
+    }
+  });
+
+  dagre.layout(g);
+
+  const positions: Record<string, { x: number; y: number }> = {};
+  nodes.forEach((n) => {
+    const dagreNode = g.node(n.id);
+    if (dagreNode) {
+      positions[n.id] = {
+        x: Math.round(dagreNode.x - NODE_WIDTH / 2),
+        y: Math.round(dagreNode.y - NODE_HEIGHT / 2),
+      };
+    } else {
+      positions[n.id] = { x: 0, y: 0 };
+    }
+  });
+
+  return positions;
+}
+
 const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   nodes: rawNodes,
   edges: rawEdges,
@@ -68,6 +121,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   const [filterType, setFilterType] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const [layoutDirection, setLayoutDirection] = useState<'LR' | 'TB'>('LR');
 
   // Compute 1-hop neighborhood for selected node
   const neighborhood = useMemo(() => {
@@ -88,52 +142,9 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     return { nodeIds, edgeIds };
   }, [selectedNodeId, rawEdges]);
 
-  // Deterministic, structured layered layout
+  // Dynamic Dagre Layout + Flow Nodes & Edges Generation
   const { flowNodes, flowEdges } = useMemo(() => {
-    const isProjectFiltered = selectedProject !== null;
-
-    // Semantic coordinate mapping to ensure ZERO node overlaps and clean flow
-    const positions: Record<string, { x: number; y: number }> = {
-      // Layer 0: Projects
-      'proj-titan': { x: 50, y: 120 },
-      'proj-apollo': { x: 50, y: isProjectFiltered ? 120 : 680 },
-      'proj-mercury': { x: 50, y: isProjectFiltered ? 120 : 1020 },
-
-      // Layer 1: Tasks
-      'task-deploy-gateway': { x: 380, y: 80 },
-      'task-kafka-sync': { x: 380, y: 280 },
-      'task-perf-benchmark': { x: 380, y: 480 },
-      'task-rfid-scanner': { x: 380, y: isProjectFiltered ? 120 : 680 },
-      'task-carrier-webhook': { x: 380, y: isProjectFiltered ? 120 : 1020 },
-
-      // Layer 2: Upstream Blockers & Critical Decisions
-      'task-sec-signoff': { x: 730, y: 80 },
-      'dec-telemetry-residency': { x: 730, y: 260 },
-      'dec-gateway-mesh': { x: 730, y: 440 },
-      'dec-carrier-escrow': { x: 730, y: isProjectFiltered ? 240 : 1020 },
-
-      // Layer 3: Supporting Documents & Specifications
-      'doc-sec-audit': { x: 1080, y: 80 },
-      'doc-adr-08': { x: 1080, y: 260 },
-      'doc-rfc-gateway': { x: 1080, y: 440 },
-      'doc-carrier-sla': { x: 1080, y: isProjectFiltered ? 380 : 1020 },
-
-      // Layer 4: People (Assignees, Owners & Decision Makers)
-      'person-elena': { x: 1440, y: 120 },
-      'person-aisha': { x: 1440, y: 260 },
-      'person-marcus': { x: 1440, y: 400 },
-      'person-sarah': { x: 1440, y: 540 },
-      'person-carlos': { x: 1440, y: isProjectFiltered ? 260 : 680 },
-      'person-david': { x: 1440, y: isProjectFiltered ? 260 : 1020 },
-
-      // Layer 5: Teams
-      'team-platform': { x: 1800, y: 160 },
-      'team-security': { x: 1800, y: 280 },
-      'team-titan': { x: 1800, y: 540 },
-      'team-carrier': { x: 1800, y: isProjectFiltered ? 360 : 1020 },
-    };
-
-    // Filter nodes by category and search
+    // 1. Filter nodes by category and search
     const filteredRawNodes = rawNodes.filter((n) => {
       if (filterType !== 'ALL' && n.label.toUpperCase() !== filterType) {
         return false;
@@ -147,10 +158,15 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     });
 
     const visibleNodeIds = new Set(filteredRawNodes.map((n) => n.id));
-    const isHighlightActive = highlightNodes.length > 0 || (selectedNodeId !== null && neighborhood.nodeIds.size > 0);
+    const isHighlightActive =
+      highlightNodes.length > 0 || (selectedNodeId !== null && neighborhood.nodeIds.size > 0);
 
+    // 2. Compute dynamic layout using Dagre
+    const positions = calculateDagreLayout(filteredRawNodes, rawEdges, layoutDirection);
+
+    // 3. Generate React Flow nodes
     const generatedNodes: Node[] = filteredRawNodes.map((n) => {
-      const pos = positions[n.id] || { x: 300, y: 300 };
+      const pos = positions[n.id] || { x: 0, y: 0 };
       const isPathHighlighted = highlightNodes.includes(n.id);
       const isNeighborHighlighted = selectedNodeId !== null && neighborhood.nodeIds.has(n.id);
       const isSelected = selectedNodeId === n.id;
@@ -174,6 +190,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
       };
     });
 
+    // 4. Generate React Flow edges
     const generatedEdges: Edge[] = rawEdges
       .filter((e) => visibleNodeIds.has(e.src) && visibleNodeIds.has(e.dst))
       .map((e) => {
@@ -187,9 +204,9 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
 
         const baseColor = EDGE_COLORS[e.rel] || '#94A3B8';
         const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(148, 163, 184, 0.22)';
-        const strokeWidth = isHighlighted || isHovered ? 2.2 : 1.2;
+        const strokeWidth = isHighlighted || isHovered ? 2.4 : 1.2;
 
-        // Show label only if highlighted, hovered, or a critical blocker
+        // Show label if highlighted, hovered, or a critical blocker edge
         const showLabel = isHighlighted || isHovered || (e.rel === 'BLOCKED_BY' && !isDimmed);
 
         return {
@@ -219,7 +236,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           },
           labelBgStyle: {
             fill: '#0E131F',
-            fillOpacity: 0.92,
+            fillOpacity: 0.94,
             stroke: isHighlighted ? baseColor : 'rgba(255, 255, 255, 0.1)',
             strokeWidth: 1,
           },
@@ -239,7 +256,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     filterType,
     searchQuery,
     hoveredEdgeId,
-    selectedProject,
+    layoutDirection,
     onSelectNode,
   ]);
 
@@ -251,17 +268,17 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     setEdges(flowEdges);
   }, [flowNodes, flowEdges, setNodes, setEdges]);
 
-  // Auto-fit on project change or highlight change
+  // Auto-fit on project change, direction change, or initial load
   useEffect(() => {
     const timer = setTimeout(() => {
-      fitView({ padding: 0.22, duration: 400 });
-    }, 100);
+      fitView({ padding: 0.18, duration: 400 });
+    }, 80);
     return () => clearTimeout(timer);
-  }, [selectedProject, fitView]);
+  }, [selectedProject, layoutDirection, fitView]);
 
   return (
     <div className="graph-wrapper">
-      {/* Refined Floating Toolbar */}
+      {/* Floating Toolbar with Filters & Layout Direction */}
       <div className="graph-toolbar">
         {/* Category Filters */}
         <div className="toolbar-section">
@@ -282,8 +299,17 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           </div>
         </div>
 
-        {/* Quick Search & Actions */}
+        {/* Layout Orientation & Search */}
         <div className="toolbar-section">
+          <button
+            className="btn-toolbar"
+            onClick={() => setLayoutDirection((prev) => (prev === 'LR' ? 'TB' : 'LR'))}
+            title={`Switch to ${layoutDirection === 'LR' ? 'Top-to-Bottom' : 'Left-to-Right'} layout`}
+          >
+            {layoutDirection === 'LR' ? <ArrowUpDown size={12} /> : <ArrowRightLeft size={12} />}
+            <span>{layoutDirection === 'LR' ? 'Vertical Layout' : 'Horizontal Flow'}</span>
+          </button>
+
           <div className="graph-search-box">
             <Search size={13} className="text-muted" />
             <input
@@ -302,7 +328,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
 
           {(highlightNodes.length > 0 || selectedNodeId !== null) && (
             <button
-              className="btn-toolbar"
+              className="btn-toolbar btn-highlight-active"
               onClick={onClearHighlight}
               title="Reset path and selection highlights"
             >
@@ -313,8 +339,8 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
 
           <button
             className="btn-toolbar"
-            onClick={() => fitView({ padding: 0.22, duration: 400 })}
-            title="Fit graph to view"
+            onClick={() => fitView({ padding: 0.18, duration: 400 })}
+            title="Fit graph to canvas"
           >
             <Maximize2 size={12} />
             <span>Fit View</span>
@@ -330,18 +356,15 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.22 }}
-        minZoom={0.2}
+        fitViewOptions={{ padding: 0.18 }}
+        minZoom={0.15}
         maxZoom={1.8}
         proOptions={{ hideAttribution: true }}
         onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdgeId(null)}
       >
         <Background color="#1A2234" gap={28} size={1} />
-        <Controls
-          className="graph-controls"
-          showInteractive={false}
-        />
+        <Controls className="graph-controls" showInteractive={false} />
         <MiniMap
           nodeColor={(n) => {
             const label = n.data?.label;
@@ -357,7 +380,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         />
       </ReactFlow>
 
-      {/* Clean Bottom Legend */}
+      {/* Legend */}
       <div className="graph-bottom-legend">
         <div className="legend-chip">
           <span className="legend-dot" style={{ background: '#38BDF8' }} />
@@ -395,3 +418,5 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = (props) => {
     </ReactFlowProvider>
   );
 };
+
+export default GraphCanvas;

@@ -19,16 +19,37 @@ OrgMind never guesses or invents company facts. Instead, it queries a **FalkorDB
 
 ---
 
-## 🏛️ Architecture Overview
+## 🏛️ Architecture & Three Workspaces (OrgMind 2.0)
+
+OrgMind 2.0 is structured into three dedicated workspaces:
+
+1. **🔬 Investigate (Primary Workspace)**:
+   - Natural language question answering parsed into deterministic intents.
+   - Structured evidence answers: Direct Answer headline, key delay & blocker statistics, causal path breadcrumbs, active blocker cards, and collapsible Cypher query details.
+   - Dynamic **Dagre-powered Knowledge Graph** with automatic rank layout, neighborhood highlighting, and causal path tracing.
+   - Contextual entity inspector for properties, incoming, and outgoing relationships.
+
+2. **🌐 Explore (Company Knowledge Catalog)**:
+   - Full entity directory across all 26 nodes (Projects, Tasks, People, Teams, Decisions, Documents).
+   - Real-time search and multi-label filtering.
+   - Deep property inspector and 1-hop relationship explorer.
+   - Quick actions: "Focus in Graph" and "Ask Brain About This".
+
+3. **⚙️ Data & Connections (Technical Settings & Cypher Console)**:
+   - Unambiguous Live FalkorDB Cloud vs. Zero-Config Demo Mode.
+   - Connection configuration (host, port, credentials, SSL, graph name) and live connection testing.
+   - Graph schema telemetry (node counts, edge counts, label breakdown, relationship types).
+   - Idempotent demo database re-seeder (Cypher MERGE statements).
+   - Interactive Cypher query console with preset queries and formatted table output.
 
 ```mermaid
 flowchart LR
     subgraph Frontend["Frontend (React 19 + Vite + TypeScript)"]
-        UI["Modern Discord/Linear Dark UI"]
-        Chat["Company Brain Q&A Panel"]
-        Evidence["Evidence & Citation Cards"]
-        GraphUI["Interactive Graph Canvas (React Flow)"]
-        Inspector["Node & Relationship Inspector"]
+        Nav["Workspace Rail (Investigate / Explore / Data)"]
+        Investigate["Investigate View (Q&A + Dagre Canvas)"]
+        Explore["Explore View (Catalog & Deep Inspector)"]
+        DataView["Data View (FalkorDB Config & Cypher Console)"]
+        DagreGraph["Dagre Layout Engine (@dagrejs/dagre)"]
     end
 
     subgraph Backend["Backend (FastAPI + Python 3.14)"]
@@ -36,20 +57,20 @@ flowchart LR
         Router["Deterministic Question Router"]
         CypherGen["Parameterized Cypher Generator"]
         FalkorService["FalkorDB Driver & Query Executor"]
-        Fallback["Zero-Config Fallback Graph Engine"]
+        DemoGraph["In-Memory Knowledge Graph Engine"]
     end
 
     subgraph Database["Graph Database (FalkorDB)"]
-        FalkorCloud[("FalkorDB Cloud / Local RedisGraph")]
+        FalkorCloud[("FalkorDB Cloud / Local FalkorDB")]
         CypherEngine["Cypher Pattern Match Engine"]
     end
 
-    UI --> Chat & GraphUI
-    Chat --> API
-    Evidence -.->|Highlight Active Path| GraphUI
+    Nav --> Investigate & Explore & DataView
+    Investigate --> DagreGraph
+    Investigate & Explore & DataView --> API
     API --> Router --> CypherGen --> FalkorService
     FalkorService -->|Live Mode (Cypher)| FalkorCloud
-    FalkorService -.->|Demo Mode Fallback| Fallback
+    FalkorService -.->|Demo Mode (Zero-Config)| DemoGraph
 ```
 
 ---
