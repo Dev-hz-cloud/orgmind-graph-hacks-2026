@@ -47,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         className={`discord-box-btn ${activeTab === 'chat' ? 'is-active' : ''}`}
         onClick={() => onSelectTab('chat')}
-        title="Chat Brain (Single Assistant)"
+        title="Company Brain Chat"
       >
         <span className="pill-indicator" />
         <MessageSquare size={20} />
@@ -56,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         className={`discord-box-btn ${activeTab === 'flow' ? 'is-active' : ''}`}
         onClick={() => onSelectTab('flow')}
-        title="Workflow Graph (n8n + Scratch Square Blocks)"
+        title="Knowledge Graph Explorer"
       >
         <span className="pill-indicator" />
         <Workflow size={20} />
@@ -65,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         className={`discord-box-btn ${activeTab === 'database' ? 'is-active' : ''}`}
         onClick={() => onSelectTab('database')}
-        title="Directory Database GUI (Browse & Edit Records)"
+        title="Company Knowledge Database"
       >
         <span className="pill-indicator" />
         <Database size={20} />

@@ -65,7 +65,7 @@ const EDGE_COLORS: Record<string, string> = {
 };
 
 const NODE_WIDTH = 190;
-const NODE_HEIGHT = 56;
+const NODE_HEIGHT = 80;
 
 const CATEGORY_ICONS: Record<NodeLabel, React.FC<{ size: number; color?: string }>> = {
   Project: FolderGit2,
@@ -87,10 +87,10 @@ function calculateDagreLayout(
   g.setGraph({
     rankdir: direction,
     align: 'UL',
-    nodesep: 30,
-    ranksep: 75,
-    marginx: 35,
-    marginy: 35,
+    nodesep: 55,
+    ranksep: 110,
+    marginx: 45,
+    marginy: 45,
   });
 
   nodes.forEach((n) => {
@@ -283,12 +283,13 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     setEdges(flowEdges);
   }, [flowNodes, flowEdges, setNodes, setEdges]);
 
+  // Refit whenever the visible node set changes (initial load, filter, project switch)
   useEffect(() => {
     const timer = setTimeout(() => {
-      fitView({ padding: 0.18, duration: 400 });
-    }, 100);
+      fitView({ padding: 0.2, duration: 400 });
+    }, 150);
     return () => clearTimeout(timer);
-  }, [selectedProject, layoutDirection, fitView]);
+  }, [selectedProject, layoutDirection, flowNodes.length, fitView]);
 
   return (
     <div className="booklet-workflow-workspace">
@@ -322,7 +323,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
 
           {/* Category Tabs */}
           <div className="directory-categories-row">
-            {['ALL', 'PROJECT', 'TASK', 'PERSON', 'DECISION', 'DOCUMENT'].map((type) => (
+            {['ALL', 'PROJECT', 'TASK', 'PERSON', 'DECISION', 'DOCUMENT', 'TEAM'].map((type) => (
               <button
                 key={type}
                 className={`category-pill ${filterType === type ? 'is-active' : ''}`}
@@ -336,6 +337,9 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
 
         {/* Directory Items List */}
         <div className="directory-cards-list">
+          {directoryNodes.length === 0 && (
+            <div className="directory-empty-state">No cards match your filter.</div>
+          )}
           {directoryNodes.map((n) => {
             const isSelected = selectedNodeId === n.id;
             const Icon = CATEGORY_ICONS[n.label] || FolderGit2;
@@ -427,7 +431,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
               </button>
             )}
 
-            <button className="btn-canvas-tool" onClick={() => fitView({ padding: 0.18, duration: 400 })}>
+            <button className="btn-canvas-tool" onClick={() => fitView({ padding: 0.2, duration: 400 })}>
               <Maximize2 size={13} />
               <span>Fit View</span>
             </button>
@@ -442,8 +446,8 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           fitView
-          fitViewOptions={{ padding: 0.18 }}
-          minZoom={0.2}
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.15}
           maxZoom={1.8}
           proOptions={{ hideAttribution: true }}
           onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}

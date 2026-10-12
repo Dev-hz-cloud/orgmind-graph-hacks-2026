@@ -50,6 +50,16 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
   const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
   const [editFormData, setEditFormData] = useState<Record<string, any>>({});
 
+  // Session feedback banner (client-side changes only — not persisted to FalkorDB)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null
+  );
+
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    window.setTimeout(() => setFeedback(null), 3500);
+  };
+
   // Add Record State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newRecordLabel, setNewRecordLabel] = useState<NodeLabel>('Task');
@@ -87,30 +97,51 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
     e.preventDefault();
     if (!editingNode) return;
 
+    const title = (editFormData.name || editFormData.title || '').trim();
+    if (!title) {
+      showFeedback('error', 'Title / Name cannot be empty.');
+      return;
+    }
+    if (Number(editFormData.delay_days) < 0 || Number.isNaN(Number(editFormData.delay_days))) {
+      showFeedback('error', 'Delay days must be zero or a positive number.');
+      return;
+    }
+
     const updatedNode: GraphNode = {
       ...editingNode,
       properties: {
         ...editingNode.properties,
         ...editFormData,
+        name: title,
+        title,
       },
     };
 
     onUpdateNode(updatedNode);
     setEditingNode(null);
+    showFeedback('success', `Updated “${title}” (session only — not written to FalkorDB).`);
   };
 
   // Handle Add Record
   const handleCreateRecord = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRecordData.title.trim()) return;
+    if (!newRecordData.title.trim()) {
+      showFeedback('error', 'Name / Title is required to create a record.');
+      return;
+    }
+    if (Number(newRecordData.delay_days) < 0 || Number.isNaN(Number(newRecordData.delay_days))) {
+      showFeedback('error', 'Delay days must be zero or a positive number.');
+      return;
+    }
 
+    const title = newRecordData.title.trim();
     const prefix = newRecordLabel.toLowerCase();
     const newId = `${prefix}-${Date.now().toString().slice(-5)}`;
 
     const properties: Record<string, any> = {
       id: newId,
-      name: newRecordData.title,
-      title: newRecordData.title,
+      name: title,
+      title,
       status: newRecordData.status,
       delay_days: Number(newRecordData.delay_days) || 0,
     };
@@ -133,6 +164,10 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
 
     onAddNode(newNode);
     setIsAddModalOpen(false);
+    showFeedback(
+      'success',
+      `Created ${newRecordLabel} “${title}” (session only — not written to FalkorDB).`
+    );
     setNewRecordData({
       title: '',
       status: 'ON_TRACK',
@@ -146,6 +181,12 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
 
   return (
     <div className="database-gui-container">
+      {/* Session feedback banner */}
+      {feedback && (
+        <div className={`db-feedback-banner ${feedback.type}`} role="status">
+          {feedback.message}
+        </div>
+      )}
       {/* 1. Database Header */}
       <header className="database-header">
         <div className="header-info">
@@ -332,8 +373,9 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                         <button
                           className="btn-db-action delete"
                           onClick={() => {
-                            if (window.confirm(`Delete record "${title}" (${node.id})?`)) {
+                            if (window.confirm(`Delete record "${title}" (${node.id})? This only affects the current session.`)) {
                               onDeleteNode(node.id);
+                              showFeedback('success', `Deleted “${title}” (session only — graph refreshed).`);
                             }
                           }}
                           title="Delete record"

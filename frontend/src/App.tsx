@@ -224,6 +224,7 @@ export const App: React.FC = () => {
 
       {/* FalkorDB Connection Settings Modal */}
       <ConnectionModal
+        key={config ? `cfg-${config.falkordb_graph}-${config.mode}` : 'cfg-pending'}
         isOpen={isConnectionModalOpen}
         onClose={() => setIsConnectionModalOpen(false)}
         config={config}

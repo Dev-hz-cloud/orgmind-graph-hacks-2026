@@ -23,11 +23,17 @@ const PRESETS = [
 ];
 
 export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
   const [cypherQuery, setCypherQuery] = useState('MATCH (t:Task {status: "BLOCKED"}) RETURN t');
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<any | null>(null);
+
+  if (!isOpen) return null;
+
+  // Clear stale results on close so reopening starts fresh
+  const handleClose = () => {
+    setResult(null);
+    onClose();
+  };
 
   const handleRun = async () => {
     setIsRunning(true);
@@ -50,7 +56,7 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
             <Terminal size={20} color="var(--accent-indigo)" />
             <h3>Direct Cypher Query Explorer</h3>
           </div>
-          <button className="close-btn" onClick={onClose}>
+          <button className="close-btn" onClick={handleClose}>
             <X size={18} />
           </button>
         </div>

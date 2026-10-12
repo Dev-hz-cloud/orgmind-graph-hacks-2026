@@ -25,8 +25,6 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({
   config,
   onConnectionUpdated,
 }) => {
-  if (!isOpen) return null;
-
   const [host, setHost] = useState(config?.falkordb_host && config.falkordb_host !== 'None (Demo Mode)' ? config.falkordb_host : '');
   const [port, setPort] = useState(config?.falkordb_port || 6379);
   const [username, setUsername] = useState(config?.falkordb_username || 'default');
@@ -92,6 +90,8 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({
       setTestResult({ success: false, error: err.message });
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="modal-backdrop">
