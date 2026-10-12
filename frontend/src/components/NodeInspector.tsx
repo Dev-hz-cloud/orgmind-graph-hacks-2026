@@ -5,12 +5,14 @@ import {
   ArrowRight,
   ArrowLeft,
   ExternalLink,
+  Maximize2,
+  GitBranch,
   ShieldAlert,
   Calendar,
   User,
   Hash
 } from 'lucide-react';
-import { GraphNode, GraphEdge } from '../types';
+import { GraphNode, GraphEdge, EvidenceItem } from '../types';
 
 interface NodeInspectorProps {
   nodeId: string | null;
@@ -18,7 +20,14 @@ interface NodeInspectorProps {
   edges: GraphEdge[];
   onClose: () => void;
   onSelectNode: (nodeId: string) => void;
-  onAskAboutNode: (title: string) => void;
+  onAskAboutNode?: (title: string) => void;
+  /** Evidence items from the current Brain answer (optional) */
+  evidence?: EvidenceItem[];
+  /** Open the full flashcard for this node */
+  onOpenFlashcard?: (nodeId: string) => void;
+  /** Whether the canvas currently shows only this node's neighborhood */
+  neighborhoodOnly?: boolean;
+  onToggleNeighborhood?: () => void;
 }
 
 export const NodeInspector: React.FC<NodeInspectorProps> = ({
@@ -28,6 +37,10 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
   onClose,
   onSelectNode,
   onAskAboutNode,
+  evidence,
+  onOpenFlashcard,
+  neighborhoodOnly,
+  onToggleNeighborhood,
 }) => {
   if (!nodeId) return null;
 
@@ -36,6 +49,9 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
 
   const title = node.properties.name || node.properties.title || node.id;
   const props = node.properties;
+
+  // Evidence from the current Brain answer that references this node
+  const nodeEvidence = (evidence || []).filter((ev) => ev.entity_id === nodeId);
 
   // Find incoming and outgoing edges
   const incoming = edges.filter((e) => e.dst === nodeId);
@@ -95,23 +111,47 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
 
       {/* Body content */}
       <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
+        {/* Action row: expand flashcard / focus neighborhood */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {onOpenFlashcard && (
+            <button
+              className="btn-secondary btn-inspector-action"
+              onClick={() => onOpenFlashcard(nodeId)}
+              title="Open full flashcard"
+            >
+              <Maximize2 size={12} /> Expand
+            </button>
+          )}
+          {onToggleNeighborhood && (
+            <button
+              className={`btn-secondary btn-inspector-action ${neighborhoodOnly ? 'is-on' : ''}`}
+              onClick={onToggleNeighborhood}
+              title="Show only this node and its direct connections"
+            >
+              <GitBranch size={12} /> {neighborhoodOnly ? 'Show All' : 'Neighbors'}
+            </button>
+          )}
+        </div>
+
         {/* Quick Ask */}
-        <button
-          className="btn-primary"
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            fontSize: '0.78rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            marginBottom: 16,
-          }}
-          onClick={() => onAskAboutNode(title)}
-        >
-          <Sparkles size={13} /> Ask Brain about this {node.label}
-        </button>
+        {onAskAboutNode && (
+          <button
+            className="btn-primary"
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              marginBottom: 16,
+            }}
+            onClick={() => onAskAboutNode(title)}
+          >
+            <Sparkles size={13} /> Ask Brain about this {node.label}
+          </button>
+        )}
 
         {/* Properties table */}
         <div style={{ marginBottom: 16 }}>
@@ -159,6 +199,34 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
             })}
           </div>
         </div>
+
+        {/* Evidence from current Brain answer */}
+        {nodeEvidence.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div className="section-label" style={{ paddingLeft: 0 }}>
+              <span>Evidence ({nodeEvidence.length})</span>
+              <ShieldAlert size={13} />
+            </div>
+            {nodeEvidence.map((ev) => (
+              <div
+                key={ev.id}
+                style={{
+                  padding: '8px 10px',
+                  background: 'rgba(168, 85, 247, 0.1)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  borderRadius: 6,
+                  marginBottom: 6,
+                  fontSize: '0.72rem',
+                }}
+              >
+                <strong style={{ color: '#F1F5F9' }}>{ev.title}</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                  {ev.summary}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Incoming Edges */}
         {incoming.length > 0 && (

@@ -14,25 +14,24 @@ import {
 } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import {
-  Search,
+  Filter,
   RotateCcw,
   Maximize2,
-  Filter,
-  ArrowRightLeft,
-  ArrowUpDown,
+  ZoomIn,
+  ZoomOut,
   ArrowLeft,
-  BookOpen,
   FolderGit2,
   Clock,
   User,
+  Users,
   Scale,
   FileText,
-  ExternalLink,
-  ChevronRight,
-  Sparkles
+  Sparkles,
+  GitBranch,
 } from 'lucide-react';
-import { GraphNode, GraphEdge, NodeLabel } from '../types';
+import { GraphNode, GraphEdge, NodeLabel, EvidenceItem } from '../types';
 import { CustomGraphNode } from './CustomNode';
+import { NodeInspector } from './NodeInspector';
 
 const nodeTypes = {
   custom: CustomGraphNode,
@@ -49,6 +48,9 @@ interface GraphCanvasProps {
   selectedProject: string | null;
   onBackToChat?: () => void;
   onOpenFlashcard?: (nodeId: string) => void;
+  /** Evidence items from the current Brain answer, shown in the node inspector */
+  evidence?: EvidenceItem[];
+  onAskAboutNode?: (title: string) => void;
 }
 
 const EDGE_COLORS: Record<string, string> = {
@@ -73,8 +75,17 @@ const CATEGORY_ICONS: Record<NodeLabel, React.FC<{ size: number; color?: string 
   Person: User,
   Decision: Scale,
   Document: FileText,
-  Team: FolderGit2,
+  Team: Users,
 };
+
+const LEGEND_ITEMS: Array<{ label: NodeLabel; color: string }> = [
+  { label: 'Project', color: '#38BDF8' },
+  { label: 'Task', color: '#F59E0B' },
+  { label: 'Person', color: '#EC4899' },
+  { label: 'Team', color: '#FB7185' },
+  { label: 'Decision', color: '#A855F7' },
+  { label: 'Document', color: '#06B6D4' },
+];
 
 function calculateDagreLayout(
   nodes: GraphNode[],
@@ -133,12 +144,15 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   selectedProject,
   onBackToChat,
   onOpenFlashcard,
+  evidence,
+  onAskAboutNode,
 }) => {
-  const { fitView } = useReactFlow();
+  const { fitView, zoomIn, zoomOut } = useReactFlow();
   const [filterType, setFilterType] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [layoutDirection, setLayoutDirection] = useState<'LR' | 'TB'>('LR');
+  const [neighborhoodOnly, setNeighborhoodOnly] = useState<boolean>(false);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   // Compute 1-hop neighborhood for selected node
   const neighborhood = useMemo(() => {
@@ -159,20 +173,18 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     return { nodeIds, edgeIds };
   }, [selectedNodeId, rawEdges]);
 
-  // Directory filtered items
+  // Canvas-filtered nodes: label filter + optional neighborhood-only focus
   const directoryNodes = useMemo(() => {
     return rawNodes.filter((n) => {
       if (filterType !== 'ALL' && n.label.toUpperCase() !== filterType) {
         return false;
       }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const title = (n.properties.name || n.properties.title || n.id).toLowerCase();
-        return title.includes(q);
+      if (neighborhoodOnly && selectedNodeId && !neighborhood.nodeIds.has(n.id)) {
+        return false;
       }
       return true;
     });
-  }, [rawNodes, filterType, searchQuery]);
+  }, [rawNodes, filterType, neighborhoodOnly, selectedNodeId, neighborhood]);
 
   // Flow Nodes & Edges Generation
   const { flowNodes, flowEdges } = useMemo(() => {
@@ -283,46 +295,97 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
     setEdges(flowEdges);
   }, [flowNodes, flowEdges, setNodes, setEdges]);
 
-  // Refit whenever the visible node set changes (initial load, filter, project switch)
+  // Refit when the visible node set actually changes (initial load, filter,
+  // project switch) — but never on mere selection changes, so a user's manual
+  // zoom/pan is not disrupted while exploring.
   useEffect(() => {
     const timer = setTimeout(() => {
       fitView({ padding: 0.2, duration: 400 });
     }, 150);
     return () => clearTimeout(timer);
-  }, [selectedProject, layoutDirection, flowNodes.length, fitView]);
+  }, [selectedProject, layoutDirection, filterType, neighborhoodOnly, flowNodes.length, fitView]);
+
+  const hasGraphData = rawNodes.length > 0;
 
   return (
-    <div className="booklet-workflow-workspace">
-      {/* ----------------------------------------------------
-          Left Side: Booklet Directory Index
-      ---------------------------------------------------- */}
-      <aside className="booklet-directory-panel">
-        <div className="directory-header">
-          <div className="directory-title-row">
-            <BookOpen size={16} className="text-pink" />
-            <h3 className="directory-title">Directory Index</h3>
-            <span className="directory-count">{directoryNodes.length} cards</span>
+    <div className="scratch-graph-workspace">
+      <main className="n8n-cube-canvas-panel">
+        {/* Floating Canvas Toolbar */}
+        <div className="canvas-floating-toolbar">
+          <div className="canvas-toolbar-left">
+            {onBackToChat && (
+              <button className="btn-canvas-back" onClick={onBackToChat} title="Return to Company Brain">
+                <ArrowLeft size={14} />
+                <span>Brain</span>
+              </button>
+            )}
+
+            <div className="canvas-flow-tag">
+              <Sparkles size={13} className="text-purple" />
+              <span>
+                {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', '') : 'FULL GRAPH'}
+              </span>
+              <span className="canvas-node-count">{directoryNodes.length} nodes</span>
+            </div>
           </div>
 
-          {/* Search Box */}
-          <div className="directory-search-box">
-            <Search size={13} className="text-muted" />
-            <input
-              type="text"
-              placeholder="Filter cards..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="directory-search-input"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="search-clear">
-                ×
+          <div className="canvas-toolbar-right">
+            <button
+              className={`btn-canvas-tool ${showFilters ? 'is-active' : ''}`}
+              onClick={() => setShowFilters((v) => !v)}
+              title="Filter nodes by category"
+            >
+              <Filter size={13} />
+              <span>Filter</span>
+            </button>
+
+            <button
+              className="btn-canvas-tool btn-icon"
+              onClick={() => zoomOut()}
+              title="Zoom out"
+            >
+              <ZoomOut size={14} />
+            </button>
+            <button
+              className="btn-canvas-tool btn-icon"
+              onClick={() => zoomIn()}
+              title="Zoom in"
+            >
+              <ZoomIn size={14} />
+            </button>
+            <button
+              className="btn-canvas-tool btn-icon"
+              onClick={() => fitView({ padding: 0.2, duration: 400 })}
+              title="Fit graph to view"
+            >
+              <Maximize2 size={13} />
+            </button>
+
+            <button
+              className="btn-canvas-tool"
+              onClick={() => {
+                setLayoutDirection((prev) => (prev === 'LR' ? 'TB' : 'LR'));
+                setFilterType('ALL');
+                setNeighborhoodOnly(false);
+              }}
+              title="Reset layout and orientation"
+            >
+              <RotateCcw size={13} />
+              <span>{layoutDirection === 'LR' ? 'Vertical' : 'Horizontal'}</span>
+            </button>
+
+            {(highlightNodes.length > 0 || selectedNodeId !== null) && (
+              <button className="btn-canvas-tool btn-clear-focus" onClick={onClearHighlight}>
+                <GitBranch size={13} />
+                <span>Clear Focus</span>
               </button>
             )}
           </div>
+        </div>
 
-          {/* Category Tabs */}
-          <div className="directory-categories-row">
+        {/* Floating category filter chips */}
+        {showFilters && (
+          <div className="canvas-filter-chips">
             {['ALL', 'PROJECT', 'TASK', 'PERSON', 'DECISION', 'DOCUMENT', 'TEAM'].map((type) => (
               <button
                 key={type}
@@ -333,109 +396,42 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
               </button>
             ))}
           </div>
-        </div>
+        )}
 
-        {/* Directory Items List */}
-        <div className="directory-cards-list">
-          {directoryNodes.length === 0 && (
-            <div className="directory-empty-state">No cards match your filter.</div>
-          )}
-          {directoryNodes.map((n) => {
-            const isSelected = selectedNodeId === n.id;
-            const Icon = CATEGORY_ICONS[n.label] || FolderGit2;
-            const title = n.properties.name || n.properties.title || n.id;
-            const status = n.properties.status;
-            const delay = n.properties.delay_days;
-            const isBlocked = status === 'BLOCKED' || status === 'DELAYED';
-
-            return (
-              <div
-                key={n.id}
-                className={`directory-item-card ${isSelected ? 'is-selected' : ''}`}
-                onClick={() => onSelectNode(n.id)}
-              >
-                <div className="item-card-left">
-                  <div className="item-card-icon">
-                    <Icon size={13} />
-                  </div>
-                  <div className="item-card-text">
-                    <span className="item-card-title" title={title}>
-                      {title}
-                    </span>
-                    <span className="item-card-meta">
-                      {n.label} {status ? `· ${status}` : ''}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="item-card-right">
-                  {isBlocked && (
-                    <span className="item-card-delay">{delay ? `${delay}d` : 'Blocked'}</span>
-                  )}
-                  {onOpenFlashcard && isSelected && (
-                    <button
-                      className="btn-flip-card"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenFlashcard(n.id);
-                      }}
-                      title="Open full Flashcard view"
-                    >
-                      <span>Flip</span>
-                      <ChevronRight size={12} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </aside>
-
-      {/* ----------------------------------------------------
-          Right Side: Simple n8n Cube Connections Canvas
-      ---------------------------------------------------- */}
-      <main className="n8n-cube-canvas-panel">
-        {/* Top Canvas Toolbar */}
-        <div className="cube-canvas-toolbar">
-          <div className="canvas-toolbar-left">
-            {onBackToChat && (
-              <button className="btn-canvas-back" onClick={onBackToChat} title="Return to Chat Brain">
-                <ArrowLeft size={14} />
-                <span>Back to Chat</span>
-              </button>
-            )}
-
-            <div className="canvas-flow-tag">
-              <Sparkles size={14} className="text-purple" />
-              <span>
-                Workflow: {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', '') : 'FULL GRAPH'}
-              </span>
-            </div>
+        {/* Empty state */}
+        {!hasGraphData && (
+          <div className="graph-empty-state">
+            <FolderGit2 size={40} className="graph-empty-icon" />
+            <h3>No graph data yet</h3>
+            <p>
+              The graph will appear here once data loads. Check your FalkorDB connection in Settings,
+              or re-seed the demo dataset from the sidebar.
+            </p>
           </div>
+        )}
 
-          <div className="canvas-toolbar-right">
-            <button
-              className="btn-canvas-tool"
-              onClick={() => setLayoutDirection((prev) => (prev === 'LR' ? 'TB' : 'LR'))}
-              title="Toggle flow layout direction"
-            >
-              {layoutDirection === 'LR' ? <ArrowUpDown size={13} /> : <ArrowRightLeft size={13} />}
-              <span>{layoutDirection === 'LR' ? 'Vertical' : 'Horizontal'}</span>
-            </button>
+        {/* Compact Node Inspector (right-side, keeps you on the canvas) */}
+        <NodeInspector
+          nodeId={selectedNodeId}
+          nodes={rawNodes}
+          edges={rawEdges}
+          evidence={evidence}
+          onClose={() => onSelectNode(null)}
+          onSelectNode={onSelectNode}
+          onAskAboutNode={onAskAboutNode}
+          onOpenFlashcard={onOpenFlashcard}
+          neighborhoodOnly={neighborhoodOnly}
+          onToggleNeighborhood={() => setNeighborhoodOnly((v) => !v)}
+        />
 
-            {(highlightNodes.length > 0 || selectedNodeId !== null) && (
-              <button className="btn-canvas-tool btn-clear-focus" onClick={onClearHighlight}>
-                <RotateCcw size={13} />
-                <span>Clear Focus</span>
-              </button>
-            )}
-
-            <button className="btn-canvas-tool" onClick={() => fitView({ padding: 0.2, duration: 400 })}>
-              <Maximize2 size={13} />
-              <span>Fit View</span>
-            </button>
-          </div>
+        {/* Category legend */}
+        <div className="canvas-legend">
+          {LEGEND_ITEMS.map((item) => (
+            <span key={item.label} className="legend-item">
+              <span className="legend-dot" style={{ background: item.color }} />
+              {item.label}
+            </span>
+          ))}
         </div>
 
         {/* React Flow Canvas */}
@@ -452,6 +448,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           proOptions={{ hideAttribution: true }}
           onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
           onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+          onPaneClick={() => onSelectNode(null)}
         >
           <Background color="#121320" gap={24} size={1.2} />
           <Controls className="n8n-cube-controls" showInteractive={false} />

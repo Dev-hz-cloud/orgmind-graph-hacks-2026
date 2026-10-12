@@ -18,6 +18,7 @@ import { Sidebar, MainTab } from './components/Sidebar';
 import { BrainChat } from './components/BrainChat';
 import { GraphCanvas } from './components/GraphCanvas';
 import { DatabaseView } from './components/DatabaseView';
+import { DirectoryIndex } from './components/DirectoryIndex';
 import { FlashcardModal } from './components/FlashcardModal';
 import { ConnectionModal } from './components/ConnectionModal';
 import { CypherModal } from './components/CypherModal';
@@ -38,8 +39,11 @@ export const App: React.FC = () => {
   const [highlightNodes, setHighlightNodes] = useState<string[]>([]);
   const [highlightEdges, setHighlightEdges] = useState<string[]>([]);
 
-  // Flashcard Modal State
+  // Flashcard Modal State (full-card modal, opened explicitly via Expand/Card actions)
   const [flashcardNodeId, setFlashcardNodeId] = useState<string | null>(null);
+
+  // Graph canvas selection state (drives the compact NodeInspector on-canvas)
+  const [graphSelectedId, setGraphSelectedId] = useState<string | null>(null);
 
   // Tools Modals
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
@@ -113,6 +117,7 @@ export const App: React.FC = () => {
     setHighlightNodes([]);
     setHighlightEdges([]);
     setFlashcardNodeId(null);
+    setGraphSelectedId(null);
   };
 
   // Database View record handlers (CLIENT-SIDE ONLY).
@@ -131,6 +136,7 @@ export const App: React.FC = () => {
     // Prune edges referencing the deleted node so the graph canvas stays consistent
     setEdges((prev) => prev.filter((e) => e.src !== nodeId && e.dst !== nodeId));
     if (flashcardNodeId === nodeId) setFlashcardNodeId(null);
+    if (graphSelectedId === nodeId) setGraphSelectedId(null);
   };
 
   const handleSeedData = async () => {
@@ -144,6 +150,15 @@ export const App: React.FC = () => {
     } finally {
       setIsSeeding(false);
     }
+  };
+
+  // Directory Index → Graph: switch tab and focus/highlight the entity
+  const handleInspectInGraph = (nodeId: string) => {
+    setFlashcardNodeId(null);
+    setGraphSelectedId(nodeId);
+    setHighlightNodes([nodeId]);
+    setHighlightEdges([]);
+    setActiveTab('flow');
   };
 
   return (
@@ -178,18 +193,27 @@ export const App: React.FC = () => {
             <div className="db-client-only-notice">
               <AlertTriangle size={13} />
               <span>
-                Session-only editing — add, edit, and delete below are stored in browser memory only
-                and are <strong>not written to FalkorDB</strong>. Changes reset on reload, project
-                switch, or re-seed.
+                <strong>Directory</strong> (left) is a read-only browse of loaded graph records.{' '}
+                <strong>Records table</strong> edits are session-only — stored in browser memory and{' '}
+                <strong>not written to FalkorDB</strong>. Changes reset on reload, project switch, or
+                re-seed.
               </span>
             </div>
-            <DatabaseView
-              nodes={nodes}
-              onUpdateNode={handleUpdateNode}
-              onAddNode={handleAddNode}
-              onDeleteNode={handleDeleteNode}
-              onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
-            />
+            <div className="database-workspace">
+              <DirectoryIndex
+                nodes={nodes}
+                selectedNodeId={graphSelectedId}
+                onOpenDetails={(nodeId) => setFlashcardNodeId(nodeId)}
+                onInspectInGraph={handleInspectInGraph}
+              />
+              <DatabaseView
+                nodes={nodes}
+                onUpdateNode={handleUpdateNode}
+                onAddNode={handleAddNode}
+                onDeleteNode={handleDeleteNode}
+                onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
+              />
+            </div>
           </div>
         )}
 
@@ -199,12 +223,17 @@ export const App: React.FC = () => {
             edges={edges}
             highlightNodes={highlightNodes}
             highlightEdges={highlightEdges}
-            selectedNodeId={flashcardNodeId}
-            onSelectNode={(nodeId) => setFlashcardNodeId(nodeId)}
+            selectedNodeId={graphSelectedId}
+            onSelectNode={(nodeId) => setGraphSelectedId(nodeId)}
             onClearHighlight={handleClearHighlight}
             selectedProject={selectedProject}
             onBackToChat={() => setActiveTab('chat')}
             onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
+            evidence={currentResponse?.evidence}
+            onAskAboutNode={(title) => {
+              setActiveTab('chat');
+              handleAskQuestion(`Explain how "${title}" impacts project delays`);
+            }}
           />
         )}
       </main>
