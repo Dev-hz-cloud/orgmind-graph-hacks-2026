@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import {
   fetchConfig,
   fetchSchema,
@@ -16,6 +17,7 @@ import type {
 import { Sidebar, MainTab } from './components/Sidebar';
 import { BrainChat } from './components/BrainChat';
 import { GraphCanvas } from './components/GraphCanvas';
+import { DatabaseView } from './components/DatabaseView';
 import { FlashcardModal } from './components/FlashcardModal';
 import { ConnectionModal } from './components/ConnectionModal';
 import { CypherModal } from './components/CypherModal';
@@ -113,6 +115,24 @@ export const App: React.FC = () => {
     setFlashcardNodeId(null);
   };
 
+  // Database View record handlers (CLIENT-SIDE ONLY).
+  // The backend exposes no node CRUD API, so these update local state only
+  // and are discarded on reload, project switch, or re-seed.
+  const handleUpdateNode = (updatedNode: GraphNode) => {
+    setNodes((prev) => prev.map((n) => (n.id === updatedNode.id ? updatedNode : n)));
+  };
+
+  const handleAddNode = (newNode: GraphNode) => {
+    setNodes((prev) => [...prev, newNode]);
+  };
+
+  const handleDeleteNode = (nodeId: string) => {
+    setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+    // Prune edges referencing the deleted node so the graph canvas stays consistent
+    setEdges((prev) => prev.filter((e) => e.src !== nodeId && e.dst !== nodeId));
+    if (flashcardNodeId === nodeId) setFlashcardNodeId(null);
+  };
+
   const handleSeedData = async () => {
     setIsSeeding(true);
     try {
@@ -151,6 +171,26 @@ export const App: React.FC = () => {
             onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
             onOpenFlowView={() => setActiveTab('flow')}
           />
+        )}
+
+        {activeTab === 'database' && (
+          <div className="database-tab-shell">
+            <div className="db-client-only-notice">
+              <AlertTriangle size={13} />
+              <span>
+                Session-only editing — add, edit, and delete below are stored in browser memory only
+                and are <strong>not written to FalkorDB</strong>. Changes reset on reload, project
+                switch, or re-seed.
+              </span>
+            </div>
+            <DatabaseView
+              nodes={nodes}
+              onUpdateNode={handleUpdateNode}
+              onAddNode={handleAddNode}
+              onDeleteNode={handleDeleteNode}
+              onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
+            />
+          </div>
         )}
 
         {activeTab === 'flow' && (

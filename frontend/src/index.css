@@ -1684,3 +1684,531 @@ body {
   font-size: 0.82rem;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   Database View (Company Knowledge Database GUI)
+   ========================================================================== */
+.database-tab-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.db-client-only-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(245, 158, 11, 0.08);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+  color: #FBBF24;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.db-client-only-notice svg {
+  flex-shrink: 0;
+}
+
+.database-gui-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 20px 24px;
+  font-family: var(--font-sans);
+}
+
+/* 1. Header */
+.database-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.database-header .title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.database-header .title-text {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+.database-header .total-badge {
+  padding: 2px 10px;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid var(--border-purple);
+  border-radius: 999px;
+  color: var(--purple-primary);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.database-header .subtitle-text {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.database-header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.db-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  min-width: 220px;
+}
+
+.db-search-box:focus-within {
+  border-color: var(--border-purple);
+}
+
+.db-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.db-search-input::placeholder {
+  color: var(--text-dim);
+}
+
+.search-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-primary);
+}
+
+.btn-add-record {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--gradient-purple-pink);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.btn-add-record:hover {
+  filter: brightness(1.15);
+}
+
+/* 2. Category Tabs */
+.db-category-tabs-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.db-category-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.db-category-tab:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-white);
+}
+
+.db-category-tab.is-active {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: var(--purple-primary);
+  color: var(--text-white);
+}
+
+.db-category-tab .cat-count {
+  padding: 1px 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.db-category-tab.is-active .cat-count {
+  color: var(--purple-primary);
+}
+
+/* 3. Records Table */
+.db-table-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: var(--bg-surface-1);
+}
+
+.db-records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.db-records-table thead th {
+  position: sticky;
+  top: 0;
+  padding: 11px 14px;
+  background: var(--bg-surface-2);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.db-record-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.12s ease;
+}
+
+.db-record-row:hover {
+  background: var(--bg-card-hover);
+}
+
+.db-record-row td {
+  padding: 10px 14px;
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.db-records-table .empty-cell {
+  padding: 32px 14px;
+  color: var(--text-dim);
+}
+
+.name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.record-title {
+  color: var(--text-white);
+  font-weight: 600;
+}
+
+.record-id-mono {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-dim);
+}
+
+.db-status-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.db-status-pill.status-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+}
+
+.db-status-pill.status-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+}
+
+.db-status-pill.status-yellow {
+  background: rgba(245, 158, 11, 0.15);
+  color: #FBBF24;
+}
+
+.priority-tag {
+  padding: 2px 8px;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid var(--border-purple);
+  border-radius: 6px;
+  color: var(--purple-primary);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.delay-text {
+  color: #F87171;
+  font-weight: 600;
+}
+
+.role-text {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.team-sub {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.impact-text {
+  color: var(--pink-primary);
+}
+
+.doc-type-pill {
+  padding: 2px 8px;
+  background: rgba(236, 72, 153, 0.12);
+  border: 1px solid var(--border-pink);
+  border-radius: 6px;
+  color: var(--pink-primary);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.summary-cell-text {
+  margin: 0;
+  max-width: 340px;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.actions-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-db-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.13s ease;
+}
+
+.btn-db-action.edit:hover {
+  border-color: var(--purple-primary);
+  color: var(--purple-primary);
+}
+
+.btn-db-action.card:hover {
+  border-color: var(--pink-primary);
+  color: var(--pink-primary);
+}
+
+.btn-db-action.delete {
+  padding: 4px 7px;
+  color: #F87171;
+}
+
+.btn-db-action.delete:hover {
+  border-color: #EF4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Utility text helpers used by DatabaseView */
+.text-dim { color: var(--text-dim); }
+.text-green { color: #34D399; }
+.text-muted { color: var(--text-muted); }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+/* 4 & 5. Edit / Add Record Modals */
+.db-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.15s ease;
+}
+
+.db-modal-card {
+  width: 90%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-pink);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 30px var(--pink-glow);
+  animation: scaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.db-modal-card .modal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.db-modal-card .modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-modal-card .modal-title-wrap h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+.btn-close-modal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.btn-close-modal:hover {
+  color: var(--text-white);
+}
+
+.db-edit-form .form-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.db-edit-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.db-edit-form .form-field.full-width {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+}
+
+.db-edit-form .form-field label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.db-form-input {
+  padding: 9px 12px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.13s ease;
+}
+
+.db-form-input:focus {
+  border-color: var(--purple-primary);
+}
+
+textarea.db-form-input {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.db-edit-form .modal-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.btn-cancel {
+  padding: 8px 14px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  color: var(--text-white);
+}
+
+.btn-save {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--gradient-purple-pink);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.btn-save:hover {
+  filter: brightness(1.15);
+}
