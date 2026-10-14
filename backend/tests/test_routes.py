@@ -54,6 +54,27 @@ def test_query_endpoint():
     assert len(data["highlight_nodes"]) > 0
 
 
+def test_query_unrecognised_intent_is_reported_not_hidden():
+    """The route must pass the transparency fields straight through, since the UI
+    renders `answer` and `missing_facts` verbatim."""
+    res = client.post("/api/query", json={"query": "what is the capital of france"})
+    assert res.status_code == 200
+    data = res.json()
+    assert "not recognised" in data["answer"].lower()
+    assert data["direct_answer"] is None
+    assert data["confidence"] < 1
+    assert len(data["missing_facts"]) >= 1
+    assert len(data["highlight_nodes"]) > 0
+
+
+def test_query_supported_intent_returns_its_own_answer():
+    res = client.post("/api/query", json={"query": "Who owns the blocking task?"})
+    assert res.status_code == 200
+    data = res.json()
+    assert "Ownership of Blocked Tasks" in data["answer"]
+    assert "not recognised" not in data["answer"].lower()
+
+
 def test_seed_endpoint():
     res = client.post("/api/seed")
     assert res.status_code == 200

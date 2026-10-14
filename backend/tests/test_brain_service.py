@@ -65,6 +65,41 @@ def test_project_filtering(brain):
     assert any(n["id"] == "proj-apollo" for n in filtered["nodes"])
 
 
+def test_unrecognised_question_is_flagged_not_guessed(brain):
+    """An unmatched question must say so instead of silently returning the
+    project-delay analysis as if it were the answer."""
+    res = brain.answer_question("What is the capital of France?")
+    assert "not recognised" in res["answer"].lower()
+    assert res["direct_answer"] is None
+    assert res["confidence"] < 1.0
+    assert res["missing_facts"]
+    assert res["highlight_nodes"]  # the graph still highlights the closest match
+
+
+def test_unrecognised_question_still_has_a_usable_shape(brain):
+    res = brain.answer_question("tell me about the team")
+    assert "not recognised" in res["answer"].lower()
+    for key in ("query", "cypher", "cypher_params", "answer", "evidence",
+                "highlight_nodes", "highlight_edges", "confidence", "mode"):
+        assert key in res
+
+
+def test_supported_intents_still_answer_their_own_question(brain):
+    cases = {
+        "Why is Project Titan delayed?": "Delay Root-Cause Analysis",
+        "Which tasks are blocking this launch?": "Active Blocking Tasks",
+        "Who owns the blocking task?": "Ownership of Blocked Tasks",
+        "Which decisions are still pending?": "Pending Organizational Decisions",
+        "What depends on Deploy Multi-Region API Gateway v2?": "Downstream Dependencies",
+        "Show the evidence connected to this issue": "Evidence Records",
+    }
+    for question, marker in cases.items():
+        res = brain.answer_question(question)
+        assert marker in res["answer"], f"{question} -> {res['answer'][:60]}"
+        assert "not recognised" not in res["answer"].lower()
+        assert res["confidence"] == 1.0
+
+
 def test_schema_statistics(brain):
     schema = brain.falkor.get_schema()
     assert "Project" in schema["labels"]

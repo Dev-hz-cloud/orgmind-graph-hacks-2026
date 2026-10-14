@@ -20,7 +20,7 @@ Traditional AI assistants answer "Why is this project delayed?" with plausible-s
 
 | Area | What works today |
 |---|---|
-| **💬 Company Brain Chat** | Project selector (Titan / Apollo / Mercury / All), suggested questions, structured answer cards (story summary, delay metrics, causal chain blocks, active blocker records), collapsible raw Cypher panel with copy button, loading + error states |
+| **💬 Company Brain Chat** | Project selector (Titan / Apollo / Mercury / All), suggested questions, the Brain's rendered markdown answer (headings, bullets, inline code) plus structured cards (short version / verified snapshot, delay metrics, causal chain blocks, people cited in the evidence, active blocker records), collapsible raw Cypher panel with copy button, loading + error states |
 | **🕸️ Knowledge Graph** | Dagre auto-layout (horizontal/vertical toggle), directory index with search + label filters, click-to-select with 1-hop neighborhood focus, evidence-path highlighting from chat answers, dimming of unrelated nodes, mini-map, fit-view, flashcard open ("Flip") |
 | **🗄️ Company Knowledge Database** | Browse all records by category (Projects, Teams, People, Tasks, Decisions, Documents), search/filter, add / edit / delete with validation and success feedback, open detailed flashcards. **Session-only** — see limitations below |
 | **⚙️ Settings** | FalkorDB connection form (host, port, credentials, SSL, graph name), live connection test, connect, switch back to Zero-Config Demo Mode |
@@ -180,7 +180,8 @@ RETURN p, t, blocker, owner, waiting, dec, decider, doc, taskDoc
 ## 🧪 Tests
 
 ```bash
-# backend (15 tests: intent routing, Cypher generation, evidence extraction, REST endpoints)
+# backend (20 tests: intent routing, transparency of unmatched questions,
+# Cypher generation, evidence extraction, REST endpoints)
 PYTHONPATH=backend backend/.venv/bin/pytest backend/tests -v
 
 # frontend
@@ -205,4 +206,4 @@ Covered: why-Titan-is-delayed, blocking tasks, task ownership, pending decisions
 
 - **Database tab writes are session-only.** The backend deliberately exposes no node CRUD API, so add/edit/delete in the Database tab change browser state only and reset on reload, project switch, or re-seed. The UI labels this explicitly. Read paths (graph, chat, console) are fully backed by the database.
 - **Demo mode is the default.** Without FalkorDB credentials the app serves the embedded dataset (fully functional, deterministic).
-- **Answer intents are curated,** not open-ended NLU: the six demo questions above (and close paraphrases) route to purpose-built Cypher; other phrasings fall back to the general project-status answer.
+- **Answer intents are curated,** not open-ended NLU: the six demo questions above (and close paraphrases) route to purpose-built Cypher. Any other phrasing is now reported as *not recognised* — the answer says so, lists the questions the graph can answer, and labels the project-delay analysis it runs as the nearest match rather than passing it off as an answer.

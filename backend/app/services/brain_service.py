@@ -10,6 +10,17 @@ from app.db.falkor import FalkorDBService, get_falkor_service
 
 
 class BrainService:
+    #: The questions this deterministic router can answer with purpose-built Cypher.
+    SUPPORTED_QUESTIONS: Tuple[str, ...] = (
+        "Why is <project> delayed?",
+        "Which tasks are blocking this launch?",
+        "Who owns the blocking task?",
+        "Which decisions are still pending?",
+        "What depends on <task>?",
+        "Show the evidence connected to this issue",
+        "<project> status / overview / progress",
+    )
+
     def __init__(self, falkor_service: Optional[FalkorDBService] = None):
         self.falkor = falkor_service or get_falkor_service()
 
@@ -72,7 +83,9 @@ class BrainService:
             return "WHY_DELAYED"
         if any(w in q for w in ["blocking this launch", "which tasks are blocking", "what tasks are blocking", "blocker", "blocking"]):
             return "BLOCKING_TASKS"
-        if any(w in q for w in ["status", "overview", "progress", "tell me about"]):
+        # "tell me about" used to sit here and swallowed anything phrased that way,
+        # answering project-delay facts for questions about other entities.
+        if any(w in q for w in ["status", "overview", "progress"]):
             return "PROJECT_STATUS"
         return "GENERAL"
 
@@ -758,7 +771,36 @@ Retrieved **{len(docs)} primary evidence documents** linked directly to project 
         return self._handle_why_delayed(project_id, raw_query)
 
     def _handle_general_inquiry(self, project_id: str, raw_query: str) -> Dict[str, Any]:
-        return self._handle_why_delayed(project_id, raw_query)
+        """
+        Fallback for phrasings outside the curated intents.
+
+        It still runs the closest supported query so the graph view and evidence
+        stay useful, but it says plainly that the question was not recognised and
+        that what follows does not answer it. Previously this returned the project
+        delay analysis silently, so any unmatched question looked answered by an
+        unrelated canned answer.
+        """
+        closest = self._handle_why_delayed(project_id, raw_query)
+        supported = "\n".join(f"- {question}" for question in self.SUPPORTED_QUESTIONS)
+
+        closest["answer"] = (
+            "### Question not recognised\n\n"
+            f'I could not match **"{raw_query.strip()}"** to one of the supported, '
+            "evidence-backed questions, so nothing below is an answer to it. "
+            "I have run the closest query I have (project delay analysis) for reference.\n\n"
+            "**Questions this graph can answer**\n\n"
+            f"{supported}\n\n"
+            "---\n\n"
+            "## Closest supported query: project delay analysis\n\n"
+            f"{closest['answer']}"
+        )
+        closest["direct_answer"] = None
+        closest["confidence"] = 0.25
+        closest["missing_facts"] = [
+            f'No supported question intent matched "{raw_query.strip()}".',
+            "The delay analysis shown is the nearest supported question, not the one that was asked.",
+        ]
+        return closest
 
     def _build_empty_response(
         self, query: str, cypher: str, params: Dict[str, Any], reason: str

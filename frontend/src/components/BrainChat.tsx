@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Send,
   Sparkles,
@@ -17,7 +17,8 @@ import {
   ShieldAlert,
   HelpCircle
 } from 'lucide-react';
-import { QuestionResponse } from '../types';
+import { EvidenceItem, QuestionResponse } from '../types';
+import { AnswerText } from './AnswerText';
 
 interface BrainChatProps {
   selectedProject: string | null;
@@ -28,54 +29,6 @@ interface BrainChatProps {
   onOpenFlashcard: (nodeId: string) => void;
   onOpenFlowView: () => void;
 }
-
-const PEOPLE_DATA: Record<
-  string,
-  { name: string; role: string; team: string; avatarColor: string; avatarInitials: string }
-> = {
-  'person-elena': {
-    name: 'Elena Rostova',
-    role: 'VP of Engineering',
-    team: 'Executive / Core',
-    avatarColor: '#FFFFFF',
-    avatarInitials: 'ER',
-  },
-  'person-marcus': {
-    name: 'Marcus Vance',
-    role: 'Staff Infrastructure Architect',
-    team: 'Platform Architecture',
-    avatarColor: '#E4E4E4',
-    avatarInitials: 'MV',
-  },
-  'person-aisha': {
-    name: 'Aisha Patel',
-    role: 'Senior Compliance Officer',
-    team: 'Security & Governance',
-    avatarColor: '#D2D2D2',
-    avatarInitials: 'AP',
-  },
-  'person-sarah': {
-    name: 'Sarah Chen',
-    role: 'Lead Data Engineer',
-    team: 'Data Services',
-    avatarColor: '#C6C6C6',
-    avatarInitials: 'SC',
-  },
-  'person-carlos': {
-    name: 'Carlos Mendez',
-    role: 'Senior Mobile Engineer',
-    team: 'Warehouse Tech',
-    avatarColor: '#DDDDDD',
-    avatarInitials: 'CM',
-  },
-  'person-david': {
-    name: 'David Kim',
-    role: 'Logistics Integration Lead',
-    team: 'Partner Operations',
-    avatarColor: '#EFEFEF',
-    avatarInitials: 'DK',
-  },
-};
 
 const SUGGESTIONS = [
   'Why is Project Titan delayed?',
@@ -97,6 +50,28 @@ export const BrainChat: React.FC<BrainChatProps> = ({
   const [inputQuery, setInputQuery] = useState('');
   const [showCypher, setShowCypher] = useState(false);
   const [copiedCypher, setCopiedCypher] = useState(false);
+
+  /* People are read straight out of the current answer's evidence records — the
+     earlier fixed card list claimed people the question never mentioned. */
+  const peopleInChain = useMemo<EvidenceItem[]>(() => {
+    const seen = new Set<string>();
+    const people: EvidenceItem[] = [];
+    (currentResponse?.evidence || []).forEach((item) => {
+      if (item.label !== 'Person' || seen.has(item.entity_id)) return;
+      seen.add(item.entity_id);
+      people.push(item);
+    });
+    // Capped for layout sanity only; the header count reports every cited person.
+    return people.slice(0, 6);
+  }, [currentResponse]);
+
+  const initialsFor = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || '')
+      .join('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,23 +158,64 @@ export const BrainChat: React.FC<BrainChatProps> = ({
               <p className="user-question-text">{currentResponse.query}</p>
             </div>
 
-            {/* Direct Human-Readable Story Card */}
+            {/* The Brain's answer to *this* question (rendered from response.answer) */}
+            {currentResponse.answer && (
+              <div className="scratch-answer-card">
+                <div className="story-card-top">
+                  <span className="story-badge">
+                    <Sparkles size={13} />
+                    <span>Brain Answer</span>
+                  </span>
+                  <span className="answer-confidence">
+                    {currentResponse.mode === 'demo' ? 'Demo graph' : 'Live FalkorDB'} ·{' '}
+                    confidence {Math.round((currentResponse.confidence ?? 0) * 100)}%
+                  </span>
+                </div>
+
+                <AnswerText text={currentResponse.answer} />
+
+                {currentResponse.missing_facts && currentResponse.missing_facts.length > 0 && (
+                  <div className="answer-missing-facts">
+                    <div className="section-label" style={{ paddingLeft: 0 }}>
+                      <span>What this answer does not cover</span>
+                      <AlertTriangle size={13} />
+                    </div>
+                    <ul>
+                      {currentResponse.missing_facts.map((fact) => (
+                        <li key={fact}>{fact}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* One-line summary when the graph yields one; otherwise the raw metrics,
+                never a canned story about a project the question may not mention. */}
             <div className="story-summary-card">
               <div className="story-card-top">
                 <span className="story-badge">
                   <Sparkles size={13} />
-                  <span>The Real Story</span>
+                  <span>{currentResponse.direct_answer ? 'The Short Version' : 'Verified Graph Snapshot'}</span>
                 </span>
                 <span className="graph-verified-badge">Verified Graph Data</span>
               </div>
 
               <div className="story-card-body">
                 <p className="story-main-text">
-                  {currentResponse.direct_answer || (
+                  {currentResponse.direct_answer ? (
+                    currentResponse.direct_answer
+                  ) : currentResponse.summary_stats ? (
                     <span>
-                      <strong>Project Titan is delayed by 18 days.</strong> The rollout is blocked by
-                      unresolved data compliance questions. Specifically, API Gateway v2 cannot be
-                      deployed until SOC2 telemetry residency is approved by executive leadership.
+                      Matched across <strong>{currentResponse.evidence.length}</strong> evidence records:{' '}
+                      <strong>{currentResponse.summary_stats.total_delay_days} days</strong> of recorded delay,{' '}
+                      <strong>{currentResponse.summary_stats.critical_blockers}</strong> critical blocker(s),{' '}
+                      <strong>{currentResponse.summary_stats.pending_decisions_count}</strong> pending decision(s).
+                    </span>
+                  ) : (
+                    <span>
+                      No single-line summary was derived for this question — see the answer above, built from
+                      the evidence records below.
                     </span>
                   )}
                 </p>
@@ -270,64 +286,57 @@ export const BrainChat: React.FC<BrainChatProps> = ({
                   })}
                 </div>
               </div>
-            )}
+            )}            {/* 4. People cited by this answer's evidence records (real graph data) */}
+            {peopleInChain.length > 0 && (
+              <div className="people-cards-section">
+                <div className="scratch-section-header">
+                  <div className="section-title-wrap">
+                    <User size={15} className="text-strong" />
+                    <span>People in this evidence chain</span>
+                  </div>
+                  <span className="tap-hint">{peopleInChain.length} cited</span>
+                </div>
 
-            {/* 4. People Involved (Cards with Avatars & Real Stories) */}
-            <div className="people-cards-section">
-              <div className="scratch-section-header">
-                <div className="section-title-wrap">
-                  <User size={15} className="text-strong" />
-                  <span>Key People Involved in this Chain</span>
+                <div className="people-cards-grid">
+                  {peopleInChain.map((person) => {
+                    const name = person.properties?.name || person.title || person.entity_id;
+                    const status = (person.properties?.status as string | undefined) || 'RECORD';
+                    return (
+                      <div
+                        key={person.entity_id}
+                        className="person-avatar-card"
+                        onClick={() => onOpenFlashcard(person.entity_id)}
+                      >
+                        <div className="avatar-header">
+                          <div
+                            className="person-avatar-circle"
+                            style={{ background: '#FFFFFF', color: '#000000' }}
+                          >
+                            <span>{initialsFor(name)}</span>
+                          </div>
+                          <div className="person-names">
+                            <h4 className="person-name">{name}</h4>
+                            {person.properties?.role && (
+                              <span className="person-role">{person.properties.role}</span>
+                            )}
+                            {person.properties?.team && (
+                              <span className="person-team">{person.properties.team}</span>
+                            )}
+                          </div>
+                          <span className="person-status-badge">{status}</span>
+                        </div>
+
+                        <p className="person-context-story">{person.summary}</p>
+
+                        <div className="card-footer-action">
+                          <span>View Flashcard ↗</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
-              <div className="people-cards-grid">
-                {[
-                  {
-                    id: 'person-elena',
-                    ...PEOPLE_DATA['person-elena'],
-                    context: 'Decision Maker for DEC-2024-08 (EU Data Residency Scope). Holding final sign-off.',
-                    status: 'PENDING SIGNOFF',
-                  },
-                  {
-                    id: 'person-marcus',
-                    ...PEOPLE_DATA['person-marcus'],
-                    context: 'Lead architect on API Gateway v2. Blocked from proceeding to production deploy.',
-                    status: 'BLOCKED',
-                  },
-                  {
-                    id: 'person-aisha',
-                    ...PEOPLE_DATA['person-aisha'],
-                    context: 'Prepared SOC2 audit gap report. Waiting on executive resolution before clearing gateway.',
-                    status: 'WAITING',
-                  },
-                ].map((p) => (
-                  <div
-                    key={p.id}
-                    className="person-avatar-card"
-                    onClick={() => onOpenFlashcard(p.id)}
-                  >
-                    <div className="avatar-header">
-                      <div className="person-avatar-circle" style={{ background: p.avatarColor, color: '#000000' }}>
-                        <span>{p.avatarInitials}</span>
-                      </div>
-                      <div className="person-names">
-                        <h4 className="person-name">{p.name}</h4>
-                        <span className="person-role">{p.role}</span>
-                        <span className="person-team">{p.team}</span>
-                      </div>
-                      <span className="person-status-badge">{p.status}</span>
-                    </div>
-
-                    <p className="person-context-story">{p.context}</p>
-
-                    <div className="card-footer-action">
-                      <span>View Flashcard ↗</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* 5. Active Blockers Flashcards Grid */}
             {currentResponse.blockers && currentResponse.blockers.length > 0 && (
