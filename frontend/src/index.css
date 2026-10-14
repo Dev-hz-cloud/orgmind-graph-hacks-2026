@@ -27,6 +27,54 @@
 }
 
 /* ==========================================================================
+   UI TEXT FACES
+   Self-hosted Inter (UI/sans) and JetBrains Mono (ids, metrics, code). Both
+   were only ever referenced by name before, so every label silently fell back
+   to whatever the OS supplied — this makes the intended faces load everywhere,
+   offline, without a font CDN.
+   ========================================================================== */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ==========================================================================
    NOTHING OS THEME
    Flat monochrome surfaces on true black, hairline separators, squared-off
    geometry and a single Nothing Red glyph accent. No gradients, no blooms.
@@ -79,7 +127,8 @@
 
   /* Type families */
   --font-display: 'Doto', 'Ndot 55', ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   /* Category ramp — categories are differentiated by luminance, not hue */
@@ -1098,12 +1147,12 @@ body {
 }
 
 .category-pill {
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: var(--r-pill);
   background: var(--bg-surface-2);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -1302,12 +1351,12 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 10px;
+  padding: 6px 11px;
   background: var(--bg-surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-md);
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 .btn-canvas-tool:hover {
@@ -1365,9 +1414,9 @@ body {
 }
 
 .canvas-node-count {
-  font-size: 0.64rem;
-  color: var(--text-dim);
-  padding-left: 7px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding-left: 8px;
   border-left: 1px solid var(--border-subtle);
 }
 
@@ -1407,13 +1456,13 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 10px;
-  max-width: 320px;
-  padding: 8px 12px;
+  max-width: 340px;
+  padding: 9px 13px;
   background: rgba(0, 0, 0, 0.86);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -2565,8 +2614,8 @@ textarea.db-form-input {
    GraphCanvas.tsx (dagre layout uses them for spacing).
    ========================================================================== */
 .scratch-cube-node {
-  width: 190px;
-  height: 80px;
+  width: 210px;
+  height: 92px;
   background: var(--bg-card);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
@@ -2610,8 +2659,8 @@ textarea.db-form-input {
 }
 
 .scratch-node-icon-box {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 5px;
   border: 1px solid;
   display: flex;
@@ -2621,7 +2670,7 @@ textarea.db-form-input {
 }
 
 .scratch-node-category {
-  font-size: 0.56rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
@@ -2629,7 +2678,7 @@ textarea.db-form-input {
 .scratch-node-body {
   flex: 1;
   min-height: 0;
-  padding: 3px 8px 6px;
+  padding: 4px 9px 7px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -2637,10 +2686,10 @@ textarea.db-form-input {
 }
 
 .scratch-node-title {
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.25;
+  color: #ffffff;
+  line-height: 1.3;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2654,9 +2703,9 @@ textarea.db-form-input {
 }
 
 .scratch-status-badge {
-  font-size: 0.55rem;
+  font-size: 0.64rem;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
   max-width: 100%;
   overflow: hidden;
@@ -2861,6 +2910,13 @@ textarea.db-form-input {
   background-color: var(--bg-deep-black);
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
   background-size: 26px 26px;
+  /* HD text on a dark, transformed surface: greyscale antialiasing avoids the
+     colour fringing subpixel AA leaves on scaled/rotated layers, and geometric
+     precision keeps glyph outlines accurate when the cube is scaled. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  font-synthesis: none;
 }
 
 .cube-stage:active {
@@ -2882,6 +2938,10 @@ textarea.db-form-input {
   pointer-events: none;
 }
 
+/* No `will-change: transform` on purpose: keeping the cube on a cached
+   compositor layer makes the browser stretch a raster of the old scale while
+   zooming, which is what turns text soft. Re-rasterising per frame keeps the
+   type sharp at every zoom step. */
 .cube-space {
   position: absolute;
   left: 50%;
@@ -2889,7 +2949,6 @@ textarea.db-form-input {
   width: 0;
   height: 0;
   transform-style: preserve-3d;
-  will-change: transform;
   z-index: 1;
 }
 
@@ -2938,17 +2997,19 @@ textarea.db-form-input {
   align-items: center;
   gap: 7px;
   font-family: var(--font-display);
-  font-size: calc(0.9rem * var(--cube-fs, 1));
-  letter-spacing: 0.08em;
+  font-size: calc(1.12rem * var(--cube-fs, 1));
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-white);
 }
 
 .cube-face-meta {
-  font-size: calc(0.56rem * var(--cube-fs, 1));
-  letter-spacing: 0.18em;
+  font-size: calc(0.68rem * var(--cube-fs, 1));
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -2964,8 +3025,8 @@ textarea.db-form-input {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 4px;
-  padding: calc(7px * var(--cube-fs, 1)) calc(9px * var(--cube-fs, 1));
+  gap: 5px;
+  padding: calc(8px * var(--cube-fs, 1)) calc(10px * var(--cube-fs, 1));
   text-align: left;
   font-family: var(--font-sans);
   background: var(--bg-card);
@@ -3000,7 +3061,7 @@ textarea.db-form-input {
 }
 
 .cube-tile.is-dimmed {
-  opacity: 0.38;
+  opacity: 0.5;
 }
 
 .cube-tile-top {
@@ -3009,22 +3070,24 @@ textarea.db-form-input {
   gap: 6px;
 }
 
+/* Micro labels use the mono face — a dot-matrix glyph at 10px is unreadable. */
 .cube-tile-index {
-  font-family: var(--font-display);
-  font-size: calc(0.72rem * var(--cube-fs, 1));
-  letter-spacing: 0.08em;
-  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: calc(0.7rem * var(--cube-fs, 1));
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
 }
 
 .cube-tile-status {
-  font-size: calc(0.53rem * var(--cube-fs, 1));
+  font-size: calc(0.66rem * var(--cube-fs, 1));
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: 3px;
-  padding: 0 4px;
+  padding: 0 5px;
 }
 
 .cube-tile-status.is-blocked {
@@ -3042,10 +3105,10 @@ textarea.db-form-input {
 }
 
 .cube-tile-title {
-  font-size: calc(0.76rem * var(--cube-fs, 1));
+  font-size: calc(0.88rem * var(--cube-fs, 1));
   font-weight: 600;
-  line-height: 1.25;
-  color: var(--text-white);
+  line-height: 1.3;
+  color: #ffffff;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -3061,16 +3124,16 @@ textarea.db-form-input {
 
 .cube-tile-id {
   font-family: var(--font-mono);
-  font-size: calc(0.56rem * var(--cube-fs, 1));
-  color: var(--text-dim);
+  font-size: calc(0.7rem * var(--cube-fs, 1));
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .cube-tile-degree {
-  font-size: calc(0.54rem * var(--cube-fs, 1));
-  color: var(--text-muted);
+  font-size: calc(0.66rem * var(--cube-fs, 1));
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -3079,10 +3142,11 @@ textarea.db-form-input {
   position: absolute;
   left: 4%;
   bottom: 3%;
-  font-size: calc(0.58rem * var(--cube-fs, 1));
+  font-size: calc(0.64rem * var(--cube-fs, 1));
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
   pointer-events: none;
 }
 
@@ -3117,13 +3181,13 @@ textarea.db-form-input {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 10px;
+  padding: 5px 11px;
   background: transparent;
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-pill);
   color: var(--text-secondary);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
+  font-size: 0.74rem;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -3147,13 +3211,13 @@ button.cube-crumb:hover {
 
 .cube-crumb-count {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  opacity: 0.7;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .cube-tool-badge {
-  font-size: 0.56rem;
-  padding: 0 5px;
+  font-size: 0.64rem;
+  padding: 0 6px;
   border-radius: var(--r-pill);
   background: rgba(255, 255, 255, 0.14);
   color: var(--text-secondary);
@@ -3184,7 +3248,7 @@ button.cube-crumb:hover {
   padding: 0 2px 7px;
   margin-bottom: 3px;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 0.58rem;
+  font-size: 0.66rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-dim);
@@ -3201,12 +3265,12 @@ button.cube-crumb:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 7px 9px;
   background: var(--bg-surface-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-sm);
   color: var(--text-primary);
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 
@@ -3217,9 +3281,10 @@ button.cube-crumb:hover {
 
 .cube-dim-key {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--text-dim);
-  width: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 11px;
 }
 
 .cube-dim-name {
@@ -3230,8 +3295,8 @@ button.cube-crumb:hover {
 
 .cube-dim-count {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--text-dim);
+  font-size: 0.68rem;
+  color: var(--text-muted);
 }
 
 .cube-dim-eye {
@@ -3279,7 +3344,7 @@ button.cube-crumb:hover {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.58rem;
+  font-size: 0.66rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -3300,7 +3365,7 @@ button.cube-crumb:hover {
 
 .cube-hud-title {
   margin-top: 7px;
-  font-size: 0.86rem;
+  font-size: 0.94rem;
   font-weight: 700;
   color: var(--text-white);
   line-height: 1.3;
@@ -3308,8 +3373,8 @@ button.cube-crumb:hover {
 
 .cube-hud-sub {
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--text-dim);
+  font-size: 0.68rem;
+  color: var(--text-muted);
 }
 
 .cube-hud-hops {
@@ -3323,12 +3388,12 @@ button.cube-crumb:hover {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 7px;
+  padding: 3px 8px;
   background: var(--bg-surface-2);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-pill);
   color: var(--text-secondary);
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   cursor: pointer;
 }
 
@@ -3353,12 +3418,12 @@ button.cube-crumb:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 4px 9px;
   background: transparent;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   color: var(--text-secondary);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   cursor: pointer;
 }
 
@@ -3375,10 +3440,10 @@ button.cube-crumb:hover {
 .cube-legend-item {
   background: transparent;
   border: none;
-  padding: 2px 5px;
+  padding: 2px 6px;
   border-radius: 3px;
   color: var(--text-muted);
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   cursor: pointer;
 }
 
@@ -3409,7 +3474,7 @@ button.cube-crumb:hover {
   background: rgba(0, 0, 0, 0.86);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-md);
-  font-size: 0.58rem;
+  font-size: 0.66rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-dim);
@@ -3538,7 +3603,7 @@ button.cube-crumb:hover {
   align-items: center;
   gap: 7px;
   font-family: var(--font-display);
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-white);
@@ -3584,19 +3649,19 @@ button.cube-crumb:hover {
 }
 
 .cmap-sub-title {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .cmap-sub-meta {
-  font-size: 0.58rem;
-  letter-spacing: 0.12em;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -3616,10 +3681,11 @@ button.cube-crumb:hover {
 
 .cmap-group-label {
   margin: 4px 0 9px;
-  font-size: 0.56rem;
-  letter-spacing: 0.2em;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
 }
 
 .cmap-group-label.is-outgoing {
@@ -3631,9 +3697,10 @@ button.cube-crumb:hover {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
-  padding: 9px 11px;
+  padding: 10px 12px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(0, 0, 0, 0.35);
   border-radius: 7px;
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22), 0 2px 0 rgba(0, 0, 0, 0.4);
@@ -3690,8 +3757,8 @@ button.cube-crumb:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
@@ -3705,16 +3772,17 @@ button.cube-crumb:hover {
 }
 
 .scblock-cat {
-  font-size: 0.54rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.82;
+  opacity: 0.94;
 }
 
 .scblock-title {
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 700;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3722,8 +3790,8 @@ button.cube-crumb:hover {
 
 .scblock-id {
   font-family: var(--font-mono);
-  font-size: 0.56rem;
-  opacity: 0.72;
+  font-size: 0.66rem;
+  opacity: 0.9;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3738,18 +3806,19 @@ button.cube-crumb:hover {
 }
 
 .scblock-status {
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  padding: 1px 4px;
+  letter-spacing: 0.08em;
+  padding: 2px 5px;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.32);
 }
 
 .scblock-degree {
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  opacity: 0.78;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  opacity: 0.92;
 }
 
 /* Directional relationship connectors */
@@ -3781,12 +3850,13 @@ button.cube-crumb:hover {
 
 .cmap-connector-rel {
   position: absolute;
-  left: 42px;
+  left: 44px;
   top: 50%;
   transform: translateY(-50%);
   font-family: var(--font-mono);
-  font-size: 0.58rem;
-  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -3813,10 +3883,10 @@ button.cube-crumb:hover {
   align-items: flex-start;
   gap: 8px;
   margin-top: 14px;
-  padding: 10px;
+  padding: 11px;
   border: 1px dashed var(--line);
   border-radius: var(--r-sm);
-  font-size: 0.66rem;
+  font-size: 0.74rem;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -3844,12 +3914,12 @@ button.cube-crumb:hover {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-pill);
   font-family: var(--font-mono);
-  font-size: 0.54rem;
-  color: var(--text-muted);
+  font-size: 0.62rem;
+  color: var(--text-secondary);
 }
 
 .cmap-rel-chip.is-blocking {
@@ -3880,7 +3950,7 @@ button.cube-crumb:hover {
 .cmap-empty h4 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-primary);
@@ -3888,7 +3958,7 @@ button.cube-crumb:hover {
 
 .cmap-empty p {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   line-height: 1.55;
   color: var(--text-muted);
 }
@@ -3898,7 +3968,7 @@ button.cube-crumb:hover {
   align-items: center;
   gap: 5px;
   margin-top: 4px;
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   color: var(--red-primary);
 }
 

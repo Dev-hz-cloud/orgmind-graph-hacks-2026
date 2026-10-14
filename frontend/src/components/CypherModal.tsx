@@ -89,7 +89,7 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
             value={cypherQuery}
             onChange={(e) => setCypherQuery(e.target.value)}
             style={{
-              fontFamily: 'monospace',
+              fontFamily: 'var(--font-mono)',
               fontSize: '0.8rem',
               color: 'var(--text-primary)',
               background: '#000000',
@@ -133,7 +133,7 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
                 </div>
                 <pre
                   style={{
-                    fontFamily: 'monospace',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: '0.75rem',
                     color: 'var(--text-secondary)',
                     whiteSpace: 'pre-wrap',

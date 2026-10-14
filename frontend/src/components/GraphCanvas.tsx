@@ -70,8 +70,10 @@ const EDGE_COLORS: Record<string, string> = {
   MEMBER_OF: '#828282',
 };
 
-const NODE_WIDTH = 190;
-const NODE_HEIGHT = 80;
+/* Must match the rendered .scratch-cube-node card size (bigger cards = more
+   legible node text at the default fit, and Dagre spaces them correctly). */
+const NODE_WIDTH = 210;
+const NODE_HEIGHT = 92;
 
 const CATEGORY_ICONS: Record<NodeLabel, React.FC<{ size: number; color?: string }>> = {
   Project: FolderGit2,
@@ -263,11 +265,11 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             cursor: 'pointer',
           },
           labelStyle: {
-            fill: isHighlighted ? '#FFFFFF' : '#B4B4B4',
-            fontSize: 9,
+            fill: isHighlighted ? '#FFFFFF' : '#C4C4C4',
+            fontSize: 11,
             fontWeight: 600,
-            letterSpacing: 1,
-            fontFamily: 'monospace',
+            letterSpacing: 0.6,
+            fontFamily: 'var(--font-mono)',
           },
           labelBgStyle: {
             fill: '#000000',
@@ -275,8 +277,8 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             stroke: isHighlighted ? baseColor : 'rgba(255, 255, 255, 0.22)',
             strokeWidth: 1,
           },
-          labelBgPadding: [4, 3] as [number, number],
-          labelBgBorderRadius: 2,
+          labelBgPadding: [5, 4] as [number, number],
+          labelBgBorderRadius: 3,
         };
       });
 
@@ -306,7 +308,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   // zoom/pan is not disrupted while exploring.
   useEffect(() => {
     const timer = setTimeout(() => {
-      fitView({ padding: 0.2, duration: 400 });
+      fitView({ padding: 0.12, duration: 400 });
     }, 150);
     return () => clearTimeout(timer);
   }, [selectedProject, layoutDirection, filterType, neighborhoodOnly, flowNodes.length, fitView]);
@@ -372,7 +374,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             </button>
             <button
               className="btn-canvas-tool btn-icon"
-              onClick={() => fitView({ padding: 0.2, duration: 400 })}
+              onClick={() => fitView({ padding: 0.12, duration: 400 })}
               title="Fit graph to view"
             >
               <Maximize2 size={13} />
@@ -459,9 +461,9 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.15}
-          maxZoom={1.8}
+          fitViewOptions={{ padding: 0.12 }}
+          minZoom={0.25}
+          maxZoom={2}
           proOptions={{ hideAttribution: true }}
           onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
           onEdgeMouseLeave={() => setHoveredEdgeId(null)}

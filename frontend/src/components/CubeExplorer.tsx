@@ -191,9 +191,75 @@ function layoutTiles(count: number, S: number) {
   return { slots, tileW, tileH, rows, overflow: Math.max(0, count - MAX_TILES) };
 }
 
-function cubeSizeFor(width: number, height: number) {
-  const minSide = Math.min(width || 1200, height || 800);
-  return Math.round(clampNum(minSide * 0.58, 360, 860));
+/**
+ * Half-extent of the cube's projected silhouette at the default view, per unit
+ * edge length. Fitting against this constant (instead of the full 45°/45°
+ * diagonal) keeps the default view big and its text legible, without the cube
+ * breathing in size while it is rotated.
+ */
+const DEFAULT_VIEW_EXTENT = (() => {
+  let mx = 0;
+  let my = 0;
+  for (const x of [-0.5, 0.5]) {
+    for (const y of [-0.5, 0.5]) {
+      for (const z of [-0.5, 0.5]) {
+        const r = rotatePoint({ x, y, z }, DEFAULT_VIEW.rx, DEFAULT_VIEW.ry);
+        mx = Math.max(mx, Math.abs(r.x));
+        my = Math.max(my, Math.abs(r.y));
+      }
+    }
+  }
+  return { x: mx, y: my };
+})();
+
+/** Stage space reserved for the floating toolbar and the legend/hint overlays. */
+const CHROME_TOP = 58;
+const CHROME_BOTTOM = 58;
+const STAGE_PADDING = 16;
+
+/**
+ * Fits the cube to the fully unobstructed part of the stage, and returns the
+ * centre that geometry must be positioned and projected against.
+ * Returns integer sizes so tiles land on whole pixels (crisper text).
+ */
+function cubeViewport(width: number, height: number) {
+  const w = width || 1200;
+  const h = height || 800;
+  const availW = Math.max(240, (w - STAGE_PADDING * 2) * 0.98);
+  const availH = Math.max(200, (h - CHROME_TOP - CHROME_BOTTOM) * 0.98);
+  const raw = Math.min(availW / (2 * DEFAULT_VIEW_EXTENT.x), availH / (2 * DEFAULT_VIEW_EXTENT.y));
+  // floor() keeps the fitted cube strictly inside the free space at every size
+  const size = Math.floor(clampNum(raw, 360, 1180));
+  // When the size floor/ceiling binds (very small or very large stages) the view
+  // scale compensates instead, so the cube never spills out of its box.
+  const fitScale = Math.min(1, raw / size);
+  return {
+    size,
+    fitScale,
+    availW,
+    availH,
+    center: { x: Math.round(w / 2), y: Math.round(CHROME_TOP + availH / 2) },
+  };
+}
+
+/**
+ * Quantised zoom stops. Arbitrary fractional scales are the main reason text
+ * inside a scaled layer looks soft, so every zoom path snaps to one of these.
+ */
+const ZOOM_STEPS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.12, 1.25, 1.4, 1.6, 1.8, 2, 2.25, 2.5, 2.8];
+
+function snapZoom(value: number) {
+  const clamped = clampNum(value, ZOOM_STEPS[0], ZOOM_STEPS[ZOOM_STEPS.length - 1]);
+  let best = ZOOM_STEPS[0];
+  let bestDelta = Infinity;
+  ZOOM_STEPS.forEach((step) => {
+    const delta = Math.abs(step - clamped);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      best = step;
+    }
+  });
+  return best;
 }
 
 interface CubeExplorerProps {
@@ -262,10 +328,11 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
 
   /* ---------------------------------------------------------------- geometry */
 
-  const size = cubeSizeFor(stage.w, stage.h);
+  const viewport = useMemo(() => cubeViewport(stage.w, stage.h), [stage.w, stage.h]);
+  const size = viewport.size;
   const faces = useMemo(() => buildFaces(size), [size]);
-  const scale = zoom;
-  const center = useMemo(() => ({ x: stage.w / 2, y: stage.h / 2 }), [stage.w, stage.h]);
+  const scale = viewport.fitScale * zoom;
+  const center = viewport.center;
 
   const visibleFaces = useMemo(() => faces.filter((f) => !hidden[f.dim]), [faces, hidden]);
 
@@ -565,7 +632,7 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
     if (pointers.size >= 2 && pinchRef.current) {
       const [a, b] = [...pointers.values()];
       const dist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
-      setZoom(clampNum((pinchRef.current.zoom * dist) / pinchRef.current.dist, 0.4, 2.8));
+      setZoom(snapZoom((pinchRef.current.zoom * dist) / pinchRef.current.dist));
       return;
     }
 
@@ -596,7 +663,7 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       setAnimated(false);
-      setZoom((z) => clampNum(z * Math.exp(-e.deltaY * 0.0012), 0.4, 2.8));
+      setZoom((z) => snapZoom(z * Math.exp(-e.deltaY * 0.0012)));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -655,13 +722,13 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
       case '=':
         e.preventDefault();
         setAnimated(false);
-        setZoom((z) => clampNum(z * 1.15, 0.4, 2.8));
+        setZoom((z) => snapZoom(z * 1.15));
         return;
       case '-':
       case '_':
         e.preventDefault();
         setAnimated(false);
-        setZoom((z) => clampNum(z / 1.15, 0.4, 2.8));
+        setZoom((z) => snapZoom(z / 1.15));
         return;
       case '0':
       case 'Home':
@@ -723,10 +790,14 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
   );
 
   /* Text is authored in rem so it stays legible; --cube-fs keeps it in step with
-     the adaptive cube size and the current zoom. */
+     the fitted cube size, with a floor so the smallest labels never collapse.
+     The cube is positioned in whole pixels (centre comes from cubeViewport) so
+     type lands on the device-pixel grid instead of half pixels. */
   const transformStyle = {
+    left: center.x,
+    top: center.y,
     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) rotateX(${rx}deg) rotateY(${ry}deg) scale(${scale})`,
-    '--cube-fs': String(clampNum(size / 780, 0.7, 1.05)),
+    '--cube-fs': String(clampNum(size / 700, 0.96, 1.32)),
   } as React.CSSProperties;
 
   return (
@@ -796,10 +867,10 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
               {hiddenCount > 0 && <span className="cube-tool-badge">{hiddenCount} hidden</span>}
             </button>
 
-            <button className="btn-canvas-tool btn-icon" onClick={() => setZoom((z) => clampNum(z / 1.15, 0.4, 2.8))} title="Zoom out">
+            <button className="btn-canvas-tool btn-icon" onClick={() => setZoom((z) => snapZoom(z / 1.15))} title="Zoom out">
               <ZoomOut size={14} />
             </button>
-            <button className="btn-canvas-tool btn-icon" onClick={() => setZoom((z) => clampNum(z * 1.15, 0.4, 2.8))} title="Zoom in">
+            <button className="btn-canvas-tool btn-icon" onClick={() => setZoom((z) => snapZoom(z * 1.15))} title="Zoom in">
               <ZoomIn size={14} />
             </button>
             <button className="btn-canvas-tool btn-icon" onClick={fitAll} title="Fit all (F)">

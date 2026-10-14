@@ -291,7 +291,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
                 <span style={{ color: 'var(--text-secondary)' }}>
                   <strong>{getNodeTitle(e.src)}</strong>
                 </span>
-                <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
                   -[{e.rel}]-&gt;
                 </span>
               </div>
@@ -323,7 +323,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
                   -[{e.rel}]-&gt;
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
