@@ -28,6 +28,12 @@ interface NodeInspectorProps {
   /** Whether the canvas currently shows only this node's neighborhood */
   neighborhoodOnly?: boolean;
   onToggleNeighborhood?: () => void;
+  /**
+   * `overlay` (default) floats over the canvas exactly as before.
+   * `inline` fills its container — used inside the right-hand inspector section
+   * of the cube explorer so every block click reveals details there.
+   */
+  variant?: 'overlay' | 'inline';
 }
 
 export const NodeInspector: React.FC<NodeInspectorProps> = ({
@@ -41,6 +47,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
   onOpenFlashcard,
   neighborhoodOnly,
   onToggleNeighborhood,
+  variant = 'overlay',
 }) => {
   if (!nodeId) return null;
 
@@ -62,24 +69,41 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
     return found ? found.properties.name || found.properties.title || found.id : id;
   };
 
+  const isInline = variant === 'inline';
+
   return (
     <div
-      style={{
-        position: 'absolute',
-        top: 60,
-        right: 20,
-        width: 380,
-        maxHeight: 'calc(100vh - 80px)',
-        background: 'rgba(11, 15, 25, 0.95)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(99, 102, 241, 0.4)',
-        borderRadius: 12,
-        boxShadow: 'var(--shadow-lg), var(--glow-indigo)',
-        zIndex: 50,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
+      className={isInline ? 'node-inspector-inline' : undefined}
+      style={
+        isInline
+          ? {
+              position: 'static',
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              borderRadius: 0,
+              boxShadow: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }
+          : {
+              position: 'absolute',
+              top: 60,
+              right: 20,
+              width: 380,
+              maxHeight: 'calc(100vh - 80px)',
+              background: 'rgba(0, 0, 0, 0.94)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid var(--line-strong)',
+              borderRadius: 'var(--r-md)',
+              boxShadow: 'var(--shadow-lg)',
+              zIndex: 50,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }
+      }
     >
       {/* Header */}
       <div
@@ -95,14 +119,23 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
           <span
             className="node-type-badge"
             style={{
-              background: 'rgba(99, 102, 241, 0.15)',
-              color: 'var(--accent-indigo)',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
+              background: 'rgba(255, 255, 255, 0.08)',
+              color: 'var(--text-white)',
+              border: '1px solid var(--line)',
             }}
           >
             {node.label}
           </span>
-          <h3 style={{ fontSize: '0.92rem', color: '#FFFFFF', marginTop: 4 }}>{title}</h3>
+          <h3
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '0.98rem',
+              color: '#FFFFFF',
+              marginTop: 4,
+            }}
+          >
+            {title}
+          </h3>
         </div>
         <button className="close-btn" onClick={onClose}>
           <X size={16} />
@@ -177,7 +210,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
                     display: 'flex',
                     justifyContent: 'space-between',
                     padding: '4px 0',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                    borderBottom: '1px solid var(--border-subtle)',
                   }}
                 >
                   <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>
@@ -185,7 +218,10 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
                   </span>
                   <span
                     style={{
-                      color: key === 'status' && value === 'BLOCKED' ? '#EF4444' : '#F1F5F9',
+                      color:
+                        key === 'status' && value === 'BLOCKED'
+                          ? 'var(--status-danger)'
+                          : 'var(--text-primary)',
                       fontWeight: key === 'status' ? 600 : 400,
                       textAlign: 'right',
                       maxWidth: '65%',
@@ -212,14 +248,14 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
                 key={ev.id}
                 style={{
                   padding: '8px 10px',
-                  background: 'rgba(168, 85, 247, 0.1)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
-                  borderRadius: 6,
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-sm)',
                   marginBottom: 6,
                   fontSize: '0.72rem',
                 }}
               >
-                <strong style={{ color: '#F1F5F9' }}>{ev.title}</strong>
+                <strong style={{ color: 'var(--text-primary)' }}>{ev.title}</strong>
                 <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                   {ev.summary}
                 </p>
@@ -255,7 +291,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
                 <span style={{ color: 'var(--text-secondary)' }}>
                   <strong>{getNodeTitle(e.src)}</strong>
                 </span>
-                <span style={{ color: 'var(--accent-indigo)', fontFamily: 'monospace' }}>
+                <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                   -[{e.rel}]-&gt;
                 </span>
               </div>
@@ -287,7 +323,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                <span style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace' }}>
+                <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                   -[{e.rel}]-&gt;
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>

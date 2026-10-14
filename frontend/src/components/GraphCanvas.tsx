@@ -28,6 +28,7 @@ import {
   FileText,
   Sparkles,
   GitBranch,
+  Boxes,
 } from 'lucide-react';
 import { GraphNode, GraphEdge, NodeLabel, EvidenceItem } from '../types';
 import { CustomGraphNode } from './CustomNode';
@@ -51,19 +52,22 @@ interface GraphCanvasProps {
   /** Evidence items from the current Brain answer, shown in the node inspector */
   evidence?: EvidenceItem[];
   onAskAboutNode?: (title: string) => void;
+  /** Switch to the six-dimension cube explorer (same graph, same state) */
+  onSwitchView?: () => void;
 }
 
+/* Nothing OS: edges are a monochrome ramp; only blockage carries the red glyph */
 const EDGE_COLORS: Record<string, string> = {
-  BLOCKED_BY: '#EF4444',
-  DEPENDS_ON: '#A855F7',
-  ASSIGNED_TO: '#10B981',
-  WAITING_FOR: '#F59E0B',
-  HAS_TASK: '#38BDF8',
-  REFERENCES: '#22D3EE',
-  MENTIONS: '#EC4899',
-  MADE_BY: '#8B5CF6',
-  OWNS: '#6366F1',
-  MEMBER_OF: '#FB7185',
+  BLOCKED_BY: '#D71921',
+  DEPENDS_ON: '#B0B0B0',
+  ASSIGNED_TO: '#C2C2C2',
+  WAITING_FOR: '#949494',
+  HAS_TASK: '#DCDCDC',
+  REFERENCES: '#828282',
+  MENTIONS: '#B0B0B0',
+  MADE_BY: '#A8A8A8',
+  OWNS: '#C8C8C8',
+  MEMBER_OF: '#828282',
 };
 
 const NODE_WIDTH = 190;
@@ -79,12 +83,12 @@ const CATEGORY_ICONS: Record<NodeLabel, React.FC<{ size: number; color?: string 
 };
 
 const LEGEND_ITEMS: Array<{ label: NodeLabel; color: string }> = [
-  { label: 'Project', color: '#38BDF8' },
-  { label: 'Task', color: '#F59E0B' },
-  { label: 'Person', color: '#EC4899' },
-  { label: 'Team', color: '#FB7185' },
-  { label: 'Decision', color: '#A855F7' },
-  { label: 'Document', color: '#06B6D4' },
+  { label: 'Project', color: '#FFFFFF' },
+  { label: 'Task', color: '#DCDCDC' },
+  { label: 'Person', color: '#C2C2C2' },
+  { label: 'Team', color: '#828282' },
+  { label: 'Decision', color: '#A8A8A8' },
+  { label: 'Document', color: '#949494' },
 ];
 
 function calculateDagreLayout(
@@ -146,6 +150,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
   onOpenFlashcard,
   evidence,
   onAskAboutNode,
+  onSwitchView,
 }) => {
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const [filterType, setFilterType] = useState<string>('ALL');
@@ -232,8 +237,8 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
         const isHovered = hoveredEdgeId === e.id;
         const isDimmed = isHighlightActive && !isHighlighted && !isHovered;
 
-        const baseColor = EDGE_COLORS[e.rel] || '#94A3B8';
-        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(168, 85, 247, 0.28)';
+        const baseColor = EDGE_COLORS[e.rel] || '#B0B0B0';
+        const strokeColor = isHighlighted || isHovered ? baseColor : 'rgba(255, 255, 255, 0.16)';
         const strokeWidth = isHighlighted || isHovered ? 2.5 : 1.3;
 
         const showLabel = isHighlighted || isHovered || (e.rel === 'BLOCKED_BY' && !isDimmed);
@@ -258,19 +263,20 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             cursor: 'pointer',
           },
           labelStyle: {
-            fill: isHighlighted ? '#FFFFFF' : '#CBD5E1',
+            fill: isHighlighted ? '#FFFFFF' : '#B4B4B4',
             fontSize: 9,
             fontWeight: 600,
+            letterSpacing: 1,
             fontFamily: 'monospace',
           },
           labelBgStyle: {
-            fill: '#0F1017',
+            fill: '#000000',
             fillOpacity: 0.95,
-            stroke: isHighlighted ? baseColor : 'rgba(168, 85, 247, 0.3)',
+            stroke: isHighlighted ? baseColor : 'rgba(255, 255, 255, 0.22)',
             strokeWidth: 1,
           },
           labelBgPadding: [4, 3] as [number, number],
-          labelBgBorderRadius: 4,
+          labelBgBorderRadius: 2,
         };
       });
 
@@ -321,7 +327,7 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
             )}
 
             <div className="canvas-flow-tag">
-              <Sparkles size={13} className="text-purple" />
+              <Sparkles size={13} className="text-dimmed" />
               <span>
                 {selectedProject ? selectedProject.toUpperCase().replace('PROJ-', '') : 'FULL GRAPH'}
               </span>
@@ -330,6 +336,17 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           </div>
 
           <div className="canvas-toolbar-right">
+            {onSwitchView && (
+              <button
+                className="btn-canvas-tool"
+                onClick={onSwitchView}
+                title="Switch to the six-dimension cube explorer"
+              >
+                <Boxes size={13} />
+                <span>Cube</span>
+              </button>
+            )}
+
             <button
               className={`btn-canvas-tool ${showFilters ? 'is-active' : ''}`}
               onClick={() => setShowFilters((v) => !v)}
@@ -450,20 +467,21 @@ const GraphCanvasInternal: React.FC<GraphCanvasProps> = ({
           onEdgeMouseLeave={() => setHoveredEdgeId(null)}
           onPaneClick={() => onSelectNode(null)}
         >
-          <Background color="#121320" gap={24} size={1.2} />
+          <Background color="#1F1F1F" gap={22} size={1} />
           <Controls className="n8n-cube-controls" showInteractive={false} />
           <MiniMap
             nodeColor={(n) => {
               const label = n.data?.label;
-              if (label === 'Project') return '#38BDF8';
-              if (label === 'Task') return '#F59E0B';
-              if (label === 'Person') return '#EC4899';
-              if (label === 'Decision') return '#A855F7';
-              if (label === 'Document') return '#06B6D4';
-              return '#64748B';
+              if (label === 'Project') return '#FFFFFF';
+              if (label === 'Task') return '#DCDCDC';
+              if (label === 'Person') return '#C2C2C2';
+              if (label === 'Decision') return '#A8A8A8';
+              if (label === 'Document') return '#949494';
+              if (label === 'Team') return '#828282';
+              return '#4A4A4A';
             }}
             className="n8n-cube-minimap"
-            maskColor="rgba(8, 9, 14, 0.85)"
+            maskColor="rgba(0, 0, 0, 0.88)"
           />
         </ReactFlow>
       </main>

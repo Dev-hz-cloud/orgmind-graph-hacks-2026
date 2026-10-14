@@ -53,7 +53,7 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
       <div className="modal-content" style={{ maxWidth: 720 }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Terminal size={20} color="var(--accent-indigo)" />
+            <Terminal size={20} color="#FFFFFF" />
             <h3>Direct Cypher Query Explorer</h3>
           </div>
           <button className="close-btn" onClick={handleClose}>
@@ -91,8 +91,8 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
             style={{
               fontFamily: 'monospace',
               fontSize: '0.8rem',
-              color: '#A5B4FC',
-              background: '#07090F',
+              color: 'var(--text-primary)',
+              background: '#000000',
               resize: 'vertical',
             }}
           />
@@ -120,9 +120,9 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
             {result.success ? (
               <div
                 style={{
-                  background: '#05070A',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 8,
+                  background: '#000000',
+                  border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-md)',
                   padding: 12,
                   maxHeight: 280,
                   overflowY: 'auto',
@@ -135,7 +135,7 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
                   style={{
                     fontFamily: 'monospace',
                     fontSize: '0.75rem',
-                    color: '#86EFAC',
+                    color: 'var(--text-secondary)',
                     whiteSpace: 'pre-wrap',
                   }}
                 >
@@ -146,10 +146,10 @@ export const CypherModal: React.FC<CypherModalProps> = ({ isOpen, onClose }) => 
               <div
                 style={{
                   padding: '10px 12px',
-                  borderRadius: 8,
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  color: '#FCA5A5',
+                  borderRadius: 'var(--r-md)',
+                  background: 'rgba(215, 25, 33, 0.14)',
+                  border: '1px solid rgba(215, 25, 33, 0.4)',
+                  color: 'var(--status-danger)',
                   fontSize: '0.75rem',
                   display: 'flex',
                   alignItems: 'center',

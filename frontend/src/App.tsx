@@ -14,9 +14,10 @@ import type {
   GraphEdge,
   QuestionResponse,
 } from './types';
+import { FocusRequest, nextFocusNonce } from './shared/dimensions';
 import { Sidebar, MainTab } from './components/Sidebar';
 import { BrainChat } from './components/BrainChat';
-import { GraphCanvas } from './components/GraphCanvas';
+import { GraphExplorer } from './components/GraphExplorer';
 import { DatabaseView } from './components/DatabaseView';
 import { DirectoryIndex } from './components/DirectoryIndex';
 import { FlashcardModal } from './components/FlashcardModal';
@@ -44,6 +45,9 @@ export const App: React.FC = () => {
 
   // Graph canvas selection state (drives the compact NodeInspector on-canvas)
   const [graphSelectedId, setGraphSelectedId] = useState<string | null>(null);
+
+  // Out-of-canvas focus requests (Directory Index → cube/graph)
+  const [focusTarget, setFocusTarget] = useState<FocusRequest | null>(null);
 
   // Tools Modals
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
@@ -152,12 +156,15 @@ export const App: React.FC = () => {
     }
   };
 
-  // Directory Index → Graph: switch tab and focus/highlight the entity
+  // Directory Index → Graph: switch tab and focus/highlight the entity.
+  // The focus target also tells the cube explorer to fly to that entity's
+  // dimension, so the hand-off lands somewhere visible.
   const handleInspectInGraph = (nodeId: string) => {
     setFlashcardNodeId(null);
     setGraphSelectedId(nodeId);
     setHighlightNodes([nodeId]);
     setHighlightEdges([]);
+    setFocusTarget({ nodeId, nonce: nextFocusNonce() });
     setActiveTab('flow');
   };
 
@@ -218,7 +225,7 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'flow' && (
-          <GraphCanvas
+          <GraphExplorer
             nodes={nodes}
             edges={edges}
             highlightNodes={highlightNodes}
@@ -230,6 +237,7 @@ export const App: React.FC = () => {
             onBackToChat={() => setActiveTab('chat')}
             onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
             evidence={currentResponse?.evidence}
+            externalFocus={focusTarget}
             onAskAboutNode={(title) => {
               setActiveTab('chat');
               handleAskQuestion(`Explain how "${title}" impacts project delays`);

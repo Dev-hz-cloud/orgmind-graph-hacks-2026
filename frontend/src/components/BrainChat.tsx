@@ -37,42 +37,42 @@ const PEOPLE_DATA: Record<
     name: 'Elena Rostova',
     role: 'VP of Engineering',
     team: 'Executive / Core',
-    avatarColor: 'linear-gradient(135deg, #A855F7 0%, #EC4899 100%)',
+    avatarColor: '#FFFFFF',
     avatarInitials: 'ER',
   },
   'person-marcus': {
     name: 'Marcus Vance',
     role: 'Staff Infrastructure Architect',
     team: 'Platform Architecture',
-    avatarColor: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
+    avatarColor: '#E4E4E4',
     avatarInitials: 'MV',
   },
   'person-aisha': {
     name: 'Aisha Patel',
     role: 'Senior Compliance Officer',
     team: 'Security & Governance',
-    avatarColor: 'linear-gradient(135deg, #10B981 0%, #06B6D4 100%)',
+    avatarColor: '#D2D2D2',
     avatarInitials: 'AP',
   },
   'person-sarah': {
     name: 'Sarah Chen',
     role: 'Lead Data Engineer',
     team: 'Data Services',
-    avatarColor: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
+    avatarColor: '#C6C6C6',
     avatarInitials: 'SC',
   },
   'person-carlos': {
     name: 'Carlos Mendez',
     role: 'Senior Mobile Engineer',
     team: 'Warehouse Tech',
-    avatarColor: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
+    avatarColor: '#DDDDDD',
     avatarInitials: 'CM',
   },
   'person-david': {
     name: 'David Kim',
     role: 'Logistics Integration Lead',
     team: 'Partner Operations',
-    avatarColor: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
+    avatarColor: '#EFEFEF',
     avatarInitials: 'DK',
   },
 };
@@ -123,7 +123,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
       <header className="scratch-chat-header">
         <div className="header-left-group">
           <div className="chat-title-badge">
-            <Sparkles size={16} className="text-pink" />
+            <Sparkles size={16} className="text-strong" />
             <span className="title-text">OrgMind Brain</span>
           </div>
 
@@ -228,7 +228,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
               <div className="scratch-blocks-section">
                 <div className="scratch-section-header">
                   <div className="section-title-wrap">
-                    <Puzzle size={15} className="text-purple" />
+                    <Puzzle size={15} className="text-dimmed" />
                     <span>Causal Chain (Click any Scratch block to expand Flashcard):</span>
                   </div>
                   <span className="tap-hint">Tap block to flip card</span>
@@ -276,7 +276,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
             <div className="people-cards-section">
               <div className="scratch-section-header">
                 <div className="section-title-wrap">
-                  <User size={15} className="text-pink" />
+                  <User size={15} className="text-strong" />
                   <span>Key People Involved in this Chain</span>
                 </div>
               </div>
@@ -308,7 +308,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
                     onClick={() => onOpenFlashcard(p.id)}
                   >
                     <div className="avatar-header">
-                      <div className="person-avatar-circle" style={{ background: p.avatarColor }}>
+                      <div className="person-avatar-circle" style={{ background: p.avatarColor, color: '#000000' }}>
                         <span>{p.avatarInitials}</span>
                       </div>
                       <div className="person-names">
@@ -334,7 +334,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
               <div className="blockers-deck-section">
                 <div className="scratch-section-header">
                   <div className="section-title-wrap">
-                    <ShieldAlert size={15} className="text-red" />
+                    <ShieldAlert size={15} className="text-danger" />
                     <span>Active Blocker Records ({currentResponse.blockers.length})</span>
                   </div>
                 </div>
@@ -388,7 +388,7 @@ export const BrainChat: React.FC<BrainChatProps> = ({
                   <div className="code-header-bar">
                     <span>CYPHER GRAPH QUERY</span>
                     <button className="btn-copy-code" onClick={handleCopyCypher}>
-                      {copiedCypher ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                      {copiedCypher ? <Check size={12} color="#FFFFFF" /> : <Copy size={12} />}
                       <span>{copiedCypher ? 'Copied' : 'Copy'}</span>
                     </button>
                   </div>

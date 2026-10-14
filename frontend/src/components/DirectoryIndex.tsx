@@ -66,7 +66,7 @@ export const DirectoryIndex: React.FC<DirectoryIndexProps> = ({
     <aside className="booklet-directory-panel db-directory-panel">
       <div className="directory-header">
         <div className="directory-title-row">
-          <Search size={16} className="text-pink" />
+          <Search size={16} className="text-strong" />
           <h3 className="directory-title">Directory Index</h3>
           <span className="directory-count">
             {filteredNodes.length}/{nodes.length}

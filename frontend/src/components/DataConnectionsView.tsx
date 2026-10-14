@@ -356,7 +356,7 @@ export const DataConnectionsView: React.FC<DataConnectionsViewProps> = ({
               </div>
               <div className="schema-stat-box">
                 <span className="stat-label">Graph Database</span>
-                <span className="stat-value text-cyan">{schema.graph_name}</span>
+                <span className="stat-value text-strong">{schema.graph_name}</span>
               </div>
             </div>
           ) : (
@@ -447,7 +447,7 @@ export const DataConnectionsView: React.FC<DataConnectionsViewProps> = ({
           />
           <div className="cypher-editor-actions">
             <button className="btn-copy" onClick={handleCopyQuery}>
-              {copiedCypher ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
+              {copiedCypher ? <Check size={13} color="#FFFFFF" /> : <Copy size={13} />}
               <span>{copiedCypher ? 'Copied' : 'Copy'}</span>
             </button>
             <button

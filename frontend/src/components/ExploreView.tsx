@@ -35,12 +35,12 @@ const LABEL_ICONS: Record<NodeLabel, React.FC<{ size: number; color?: string }>>
 };
 
 const LABEL_COLORS: Record<NodeLabel, string> = {
-  Project: '#38BDF8',
-  Task: '#F59E0B',
-  Person: '#10B981',
-  Decision: '#8B5CF6',
-  Document: '#06B6D4',
-  Team: '#FB7185',
+  Project: '#FFFFFF',
+  Task: '#DCDCDC',
+  Person: '#C2C2C2',
+  Decision: '#A8A8A8',
+  Document: '#949494',
+  Team: '#828282',
 };
 
 export const ExploreView: React.FC<ExploreViewProps> = ({
@@ -188,7 +188,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
             ) : (
               filteredNodes.map((node) => {
                 const Icon = LABEL_ICONS[node.label] || FolderGit2;
-                const color = LABEL_COLORS[node.label] || '#94A3B8';
+                const color = LABEL_COLORS[node.label] || '#8A8A8A';
                 const isSelected = activeEntity?.id === node.id;
                 const title = node.properties.name || node.properties.title || node.id;
                 const status = node.properties.status;
@@ -320,7 +320,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                           : FolderGit2;
                         const targetColor = targetNode
                           ? LABEL_COLORS[targetNode.label]
-                          : '#94A3B8';
+                          : '#8A8A8A';
 
                         return (
                           <div
@@ -366,7 +366,7 @@ export const ExploreView: React.FC<ExploreViewProps> = ({
                           : FolderGit2;
                         const sourceColor = sourceNode
                           ? LABEL_COLORS[sourceNode.label]
-                          : '#94A3B8';
+                          : '#8A8A8A';
 
                         return (
                           <div

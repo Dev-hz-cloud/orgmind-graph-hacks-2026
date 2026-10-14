@@ -98,7 +98,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({
       <div className="modal-content">
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Database size={20} color="var(--accent-indigo)" />
+            <Database size={20} color="#FFFFFF" />
             <h3>FalkorDB Connection Settings</h3>
           </div>
           <button className="close-btn" onClick={onClose}>
@@ -110,9 +110,9 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({
         <div
           style={{
             padding: '12px 14px',
-            background: 'rgba(99, 102, 241, 0.08)',
-            border: '1px solid rgba(99, 102, 241, 0.25)',
-            borderRadius: 8,
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--r-md)',
             fontSize: '0.75rem',
             color: 'var(--text-secondary)',
             marginBottom: 16,
@@ -120,7 +120,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#FFFFFF', marginBottom: 4 }}>
-            <ShieldCheck size={14} color="var(--accent-emerald)" />
+            <ShieldCheck size={14} color="#FFFFFF" />
             <span>FalkorDB Cloud Setup</span>
           </div>
           OrgMind connects directly to your FalkorDB Cloud or local Redis instance via Cypher. If you don't have connection credentials ready, you can continue exploring with the embedded Zero-Config Demo Mode.
@@ -208,9 +208,9 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                background: testResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                border: `1px solid ${testResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                color: testResult.success ? 'var(--accent-emerald)' : '#FCA5A5',
+                background: testResult.success ? 'rgba(255, 255, 255, 0.06)' : 'rgba(215, 25, 33, 0.14)',
+                border: `1px solid ${testResult.success ? 'rgba(255, 255, 255, 0.3)' : 'rgba(215, 25, 33, 0.4)'}`,
+                color: testResult.success ? 'var(--text-white)' : 'var(--status-danger)',
               }}
             >
               {testResult.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}

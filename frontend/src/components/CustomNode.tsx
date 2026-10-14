@@ -33,45 +33,46 @@ const CUBE_THEMES: Record<
     category: string;
   }
 > = {
+  /* Nothing OS: categories are separated by luminance, not hue */
   Project: {
-    color: '#38BDF8',
-    bgBadge: 'rgba(56, 189, 248, 0.18)',
-    border: '#38BDF8',
+    color: 'var(--cat-project)',
+    bgBadge: 'rgba(255, 255, 255, 0.14)',
+    border: 'var(--cat-project)',
     icon: FolderGit2,
     category: 'PROJECT',
   },
   Task: {
-    color: '#F59E0B',
-    bgBadge: 'rgba(245, 158, 11, 0.18)',
-    border: '#F59E0B',
+    color: 'var(--cat-task)',
+    bgBadge: 'rgba(255, 255, 255, 0.11)',
+    border: 'var(--cat-task)',
     icon: Clock,
     category: 'TASK',
   },
   Person: {
-    color: '#EC4899',
-    bgBadge: 'rgba(236, 72, 153, 0.18)',
-    border: '#EC4899',
+    color: 'var(--cat-person)',
+    bgBadge: 'rgba(255, 255, 255, 0.09)',
+    border: 'var(--cat-person)',
     icon: User,
     category: 'PERSON',
   },
   Decision: {
-    color: '#A855F7',
-    bgBadge: 'rgba(168, 85, 247, 0.18)',
-    border: '#A855F7',
+    color: 'var(--cat-decision)',
+    bgBadge: 'rgba(255, 255, 255, 0.08)',
+    border: 'var(--cat-decision)',
     icon: Scale,
     category: 'DECISION',
   },
   Document: {
-    color: '#06B6D4',
-    bgBadge: 'rgba(6, 182, 212, 0.18)',
-    border: '#06B6D4',
+    color: 'var(--cat-document)',
+    bgBadge: 'rgba(255, 255, 255, 0.07)',
+    border: 'var(--cat-document)',
     icon: FileText,
     category: 'DOCUMENT',
   },
   Team: {
-    color: '#FB7185',
-    bgBadge: 'rgba(251, 113, 133, 0.18)',
-    border: '#FB7185',
+    color: 'var(--cat-team)',
+    bgBadge: 'rgba(255, 255, 255, 0.06)',
+    border: 'var(--cat-team)',
     icon: Users,
     category: 'TEAM',
   },
@@ -94,34 +95,35 @@ export const CustomGraphNode = memo(({ data }: CustomNodeProps) => {
       onClick={() => data.onSelect?.(data.id)}
       style={{
         borderColor: isHighlighted
-          ? '#EC4899'
+          ? 'var(--red-primary)'
           : isSelected
-          ? '#A855F7'
+          ? 'var(--ink-primary)'
           : isBlocked
-          ? 'rgba(239, 68, 68, 0.6)'
-          : `${theme.border}44`,
+          ? 'rgba(215, 25, 33, 0.6)'
+          : 'rgba(255, 255, 255, 0.14)',
       }}
     >
       <Handle type="target" position={Position.Left} className="scratch-node-handle" />
 
-      {/* Scratch Block Header Notch */}
+      {/* Node Header — flat plate with a hairline rule */}
       <div
         className="scratch-node-header"
-        style={{
-          background: `linear-gradient(90deg, ${theme.color}25, transparent)`,
-          borderBottom: `1px solid ${theme.color}33`,
-        }}
+        style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}
       >
         <div
           className="scratch-node-icon-box"
           style={{
-            background: isBlocked ? 'rgba(239, 68, 68, 0.25)' : theme.bgBadge,
-            borderColor: isBlocked ? '#EF4444' : theme.color,
+            background: isBlocked ? 'rgba(215, 25, 33, 0.22)' : theme.bgBadge,
+            borderColor: isBlocked ? 'var(--status-danger)' : theme.color,
+            color: isBlocked ? 'var(--status-danger)' : theme.color,
           }}
         >
-          <Icon size={12} color={isBlocked ? '#EF4444' : theme.color} />
+          <Icon size={12} color="currentColor" />
         </div>
-        <span className="scratch-node-category" style={{ color: theme.color }}>
+        <span
+          className="scratch-node-category"
+          style={{ color: isBlocked ? 'var(--status-danger)' : theme.color }}
+        >
           {theme.category}
         </span>
       </div>

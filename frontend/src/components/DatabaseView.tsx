@@ -191,7 +191,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
       <header className="database-header">
         <div className="header-info">
           <div className="title-row">
-            <Database size={18} className="text-pink" />
+            <Database size={18} className="text-strong" />
             <h2 className="title-text">Company Knowledge Database</h2>
             <span className="total-badge">{nodes.length} records</span>
           </div>
@@ -398,7 +398,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
           <div className="db-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
               <div className="modal-title-wrap">
-                <Edit2 size={16} className="text-pink" />
+                <Edit2 size={16} className="text-strong" />
                 <h3>Edit {editingNode.label}: {editingNode.properties.name || editingNode.id}</h3>
               </div>
               <button className="btn-close-modal" onClick={() => setEditingNode(null)}>
@@ -539,7 +539,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
           <div className="db-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
               <div className="modal-title-wrap">
-                <Plus size={16} className="text-pink" />
+                <Plus size={16} className="text-strong" />
                 <h3>Create New Record</h3>
               </div>
               <button className="btn-close-modal" onClick={() => setIsAddModalOpen(false)}>
