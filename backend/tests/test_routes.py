@@ -64,7 +64,9 @@ def test_query_unrecognised_intent_is_reported_not_hidden():
     assert data["direct_answer"] is None
     assert data["confidence"] < 1
     assert len(data["missing_facts"]) >= 1
-    assert len(data["highlight_nodes"]) > 0
+    # No project is named, so no graph records may be presented as evidence.
+    assert data["evidence"] == []
+    assert data["highlight_nodes"] == []
 
 
 def test_query_supported_intent_returns_its_own_answer():

@@ -25,7 +25,7 @@ def test_why_delayed_question(brain):
 
 def test_blocking_tasks_question(brain):
     res = brain.answer_question("Which tasks are blocking this launch?")
-    assert "blocked tasks" in res["answer"].lower()
+    assert "blocking tasks" in res["answer"].lower()
     assert len(res["evidence"]) >= 1
     assert any("Deploy Multi-Region API Gateway" in e["title"] for e in res["evidence"])
 
@@ -73,7 +73,31 @@ def test_unrecognised_question_is_flagged_not_guessed(brain):
     assert res["direct_answer"] is None
     assert res["confidence"] < 1.0
     assert res["missing_facts"]
-    assert res["highlight_nodes"]  # the graph still highlights the closest match
+    # No project is named, so no graph records may be presented as evidence.
+    assert res["evidence"] == []
+    assert res["highlight_nodes"] == []
+
+
+def test_unresolved_project_reports_insufficient_evidence(brain):
+    """A delay question with no resolvable project must not invent one."""
+    res = brain.answer_question("Why is the deployment delayed?")
+    assert "Insufficient Evidence" in res["answer"]
+    assert res["evidence"] == []
+    assert res["highlight_nodes"] == []
+    assert res["confidence"] == 0.0
+
+
+def test_answers_only_cite_graph_records(brain):
+    """Every cited evidence item, highlight, and causal step must be a real node."""
+    graph_ids = {n["id"] for n in brain.falkor.get_full_graph()["nodes"]}
+    res = brain.answer_question("Why is Project Titan delayed?")
+    assert res["evidence"], "expected evidence derived from the demo graph"
+    for item in res["evidence"]:
+        assert item["entity_id"] in graph_ids
+    for node_id in res["highlight_nodes"]:
+        assert node_id in graph_ids
+    for step in res.get("causal_chain") or []:
+        assert step["id"] in graph_ids
 
 
 def test_unrecognised_question_still_has_a_usable_shape(brain):

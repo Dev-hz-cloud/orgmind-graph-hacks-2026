@@ -34,6 +34,7 @@ export interface QuestionResponse {
   highlight_edges: string[];
   confidence: number;
   mode: 'live' | 'demo';
+  session_id?: string;
   direct_answer?: string;
   summary_stats?: {
     total_delay_days: number;
@@ -83,5 +84,6 @@ export interface AppConfig {
   falkordb_ssl: boolean;
   mode: 'live' | 'demo';
   is_connected: boolean;
+  allow_live_writes: boolean;
   last_error: string | null;
 }

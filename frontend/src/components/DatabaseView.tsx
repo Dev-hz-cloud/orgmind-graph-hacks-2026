@@ -15,15 +15,18 @@ import {
   Check,
   X,
   AlertTriangle,
-  Sparkles
+  Loader2
 } from 'lucide-react';
 import { GraphNode, NodeLabel } from '../types';
+import type { RecordMutationResult } from '../services/api';
 
 interface DatabaseViewProps {
   nodes: GraphNode[];
-  onUpdateNode: (updatedNode: GraphNode) => void;
-  onAddNode: (newNode: GraphNode) => void;
-  onDeleteNode: (nodeId: string) => void;
+  writable: boolean;
+  writesDisabledReason?: string | null;
+  onCreateRecord: (label: NodeLabel, properties: Record<string, any>) => Promise<RecordMutationResult>;
+  onUpdateRecord: (nodeId: string, label: NodeLabel, properties: Record<string, any>) => Promise<RecordMutationResult>;
+  onDeleteRecord: (nodeId: string) => Promise<RecordMutationResult>;
   onOpenFlashcard: (nodeId: string) => void;
 }
 
@@ -36,42 +39,139 @@ const CATEGORY_TABS: Array<{ label: NodeLabel; title: string; icon: React.FC<{ s
   { label: 'Document', title: 'Documents', icon: FileText },
 ];
 
+interface RecordFormState {
+  name: string;
+  status: string;
+  delay_days: number;
+  role: string;
+  team: string;
+  department: string;
+  lead_name: string;
+  priority: string;
+  summary: string;
+  type: string;
+  url: string;
+  progress: number;
+  target_date: string;
+  impact: string;
+  rationale: string;
+}
+
+const EMPTY_FORM: RecordFormState = {
+  name: '',
+  status: 'ON_TRACK',
+  delay_days: 0,
+  role: '',
+  team: '',
+  department: '',
+  lead_name: '',
+  priority: 'HIGH',
+  summary: '',
+  type: '',
+  url: '',
+  progress: 0,
+  target_date: '',
+  impact: '',
+  rationale: '',
+};
+
+function formFromNode(node: GraphNode): RecordFormState {
+  const p = node.properties || {};
+  return {
+    ...EMPTY_FORM,
+    name: p.name || p.title || '',
+    status: p.status || 'ON_TRACK',
+    delay_days: Number(p.delay_days) || 0,
+    role: p.role || '',
+    team: p.team || '',
+    department: p.department || '',
+    lead_name: p.lead_name || '',
+    priority: p.priority || 'HIGH',
+    summary: p.blocker_reason || p.summary || p.description || '',
+    type: p.type || '',
+    url: p.url || '',
+    progress: Number(p.progress) || 0,
+    target_date: p.target_date || '',
+    impact: p.impact || '',
+    rationale: p.rationale || '',
+  };
+}
+
+/**
+ * Build the exact allowlisted property payload the backend accepts for a label.
+ * Anything not listed here is rejected by the server-side schema, so we only
+ * ever send fields that belong to the selected record type.
+ */
+function buildProperties(label: NodeLabel, form: RecordFormState): Record<string, any> {
+  const title = form.name.trim();
+  const props: Record<string, any> = { name: title, title };
+  if (form.status) props.status = form.status;
+
+  switch (label) {
+    case 'Project':
+      props.delay_days = Number(form.delay_days) || 0;
+      props.progress = Number(form.progress) || 0;
+      if (form.target_date.trim()) props.target_date = form.target_date.trim();
+      if (form.summary.trim()) props.description = form.summary.trim();
+      break;
+    case 'Task':
+      props.delay_days = Number(form.delay_days) || 0;
+      props.priority = form.priority;
+      if (form.summary.trim()) props.blocker_reason = form.summary.trim();
+      break;
+    case 'Person':
+      if (form.role.trim()) props.role = form.role.trim();
+      if (form.team.trim()) props.team = form.team.trim();
+      break;
+    case 'Team':
+      if (form.department.trim()) props.department = form.department.trim();
+      if (form.lead_name.trim()) props.lead_name = form.lead_name.trim();
+      if (form.summary.trim()) props.description = form.summary.trim();
+      break;
+    case 'Decision':
+      if (form.summary.trim()) props.summary = form.summary.trim();
+      if (form.impact.trim()) props.impact = form.impact.trim();
+      if (form.rationale.trim()) props.rationale = form.rationale.trim();
+      break;
+    case 'Document':
+      if (form.summary.trim()) props.summary = form.summary.trim();
+      if (form.type.trim()) props.type = form.type.trim();
+      if (form.url.trim()) props.url = form.url.trim();
+      break;
+  }
+  return props;
+}
+
 export const DatabaseView: React.FC<DatabaseViewProps> = ({
   nodes,
-  onUpdateNode,
-  onAddNode,
-  onDeleteNode,
+  writable,
+  writesDisabledReason,
+  onCreateRecord,
+  onUpdateRecord,
+  onDeleteRecord,
   onOpenFlashcard,
 }) => {
   const [activeCategory, setActiveCategory] = useState<NodeLabel>('Project');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Edit State
   const [editingNode, setEditingNode] = useState<GraphNode | null>(null);
-  const [editFormData, setEditFormData] = useState<Record<string, any>>({});
-
-  // Session feedback banner (client-side changes only — not persisted to FalkorDB)
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
-    null
-  );
-
-  const showFeedback = (type: 'success' | 'error', message: string) => {
-    setFeedback({ type, message });
-    window.setTimeout(() => setFeedback(null), 3500);
-  };
+  const [editFormData, setEditFormData] = useState<RecordFormState>({ ...EMPTY_FORM });
 
   // Add Record State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newRecordLabel, setNewRecordLabel] = useState<NodeLabel>('Task');
-  const [newRecordData, setNewRecordData] = useState({
-    title: '',
-    status: 'ON_TRACK',
-    delay_days: 0,
-    role: '',
-    team: '',
-    priority: 'HIGH',
-    summary: '',
-  });
+  const [newRecordData, setNewRecordData] = useState<RecordFormState>({ ...EMPTY_FORM });
+
+  // Feedback + in-flight state
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [busyNodeId, setBusyNodeId] = useState<string | null>(null);
+
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    window.setTimeout(() => setFeedback(null), 4500);
+  };
 
   // Filtered nodes for the active category
   const filteredNodes = useMemo(() => {
@@ -87,101 +187,106 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
     });
   }, [nodes, activeCategory, searchQuery]);
 
+  const validateForm = (form: RecordFormState): string | null => {
+    if (!form.name.trim()) return 'Title / Name cannot be empty.';
+    if (Number(form.delay_days) < 0 || Number.isNaN(Number(form.delay_days))) {
+      return 'Delay days must be zero or a positive number.';
+    }
+    return null;
+  };
+
   // Handle Edit Click
   const handleStartEdit = (node: GraphNode) => {
     setEditingNode(node);
-    setEditFormData({ ...node.properties });
+    setEditFormData(formFromNode(node));
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingNode) return;
+    if (!editingNode || isSaving) return;
 
-    const title = (editFormData.name || editFormData.title || '').trim();
-    if (!title) {
-      showFeedback('error', 'Title / Name cannot be empty.');
-      return;
-    }
-    if (Number(editFormData.delay_days) < 0 || Number.isNaN(Number(editFormData.delay_days))) {
-      showFeedback('error', 'Delay days must be zero or a positive number.');
+    const invalid = validateForm(editFormData);
+    if (invalid) {
+      showFeedback('error', invalid);
       return;
     }
 
-    const updatedNode: GraphNode = {
-      ...editingNode,
-      properties: {
-        ...editingNode.properties,
-        ...editFormData,
-        name: title,
-        title,
-      },
-    };
-
-    onUpdateNode(updatedNode);
-    setEditingNode(null);
-    showFeedback('success', `Updated “${title}” (session only — not written to FalkorDB).`);
+    setIsSaving(true);
+    try {
+      const result = await onUpdateRecord(
+        editingNode.id,
+        editingNode.label,
+        buildProperties(editingNode.label, editFormData)
+      );
+      if (result.success) {
+        setEditingNode(null);
+        showFeedback('success', `Saved “${editFormData.name.trim()}” to the database.`);
+      } else {
+        showFeedback('error', result.error || 'The database did not confirm the update.');
+      }
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'The database did not confirm the update.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Handle Add Record
-  const handleCreateRecord = (e: React.FormEvent) => {
+  const handleCreateRecord = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRecordData.title.trim()) {
-      showFeedback('error', 'Name / Title is required to create a record.');
+    if (isSaving) return;
+
+    const invalid = validateForm(newRecordData);
+    if (invalid) {
+      showFeedback('error', invalid);
       return;
     }
-    if (Number(newRecordData.delay_days) < 0 || Number.isNaN(Number(newRecordData.delay_days))) {
-      showFeedback('error', 'Delay days must be zero or a positive number.');
-      return;
+
+    setIsSaving(true);
+    try {
+      const result = await onCreateRecord(
+        newRecordLabel,
+        buildProperties(newRecordLabel, newRecordData)
+      );
+      if (result.success) {
+        setIsAddModalOpen(false);
+        showFeedback('success', `Created ${newRecordLabel} “${newRecordData.name.trim()}” in the database.`);
+        setNewRecordData({ ...EMPTY_FORM });
+      } else {
+        showFeedback('error', result.error || 'The database did not confirm the new record.');
+      }
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'The database did not confirm the new record.');
+    } finally {
+      setIsSaving(false);
     }
-
-    const title = newRecordData.title.trim();
-    const prefix = newRecordLabel.toLowerCase();
-    const newId = `${prefix}-${Date.now().toString().slice(-5)}`;
-
-    const properties: Record<string, any> = {
-      id: newId,
-      name: title,
-      title,
-      status: newRecordData.status,
-      delay_days: Number(newRecordData.delay_days) || 0,
-    };
-
-    if (newRecordLabel === 'Person') {
-      properties.role = newRecordData.role || 'Engineer';
-      properties.team = newRecordData.team || 'Platform Architecture';
-    } else if (newRecordLabel === 'Task') {
-      properties.priority = newRecordData.priority;
-      properties.blocker_reason = newRecordData.summary;
-    } else if (newRecordLabel === 'Decision' || newRecordLabel === 'Document') {
-      properties.summary = newRecordData.summary;
-    }
-
-    const newNode: GraphNode = {
-      id: newId,
-      label: newRecordLabel,
-      properties,
-    };
-
-    onAddNode(newNode);
-    setIsAddModalOpen(false);
-    showFeedback(
-      'success',
-      `Created ${newRecordLabel} “${title}” (session only — not written to FalkorDB).`
-    );
-    setNewRecordData({
-      title: '',
-      status: 'ON_TRACK',
-      delay_days: 0,
-      role: '',
-      team: '',
-      priority: 'HIGH',
-      summary: '',
-    });
   };
+
+  const handleDelete = async (node: GraphNode) => {
+    const title = node.properties.name || node.properties.title || node.id;
+    if (!window.confirm(`Delete record "${title}" (${node.id}) from the database? This also removes its relationships.`)) {
+      return;
+    }
+    setBusyNodeId(node.id);
+    try {
+      const result = await onDeleteRecord(node.id);
+      if (result.success) {
+        showFeedback('success', `Deleted “${title}” from the database.`);
+      } else {
+        showFeedback('error', result.error || 'The database did not confirm the deletion.');
+      }
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'The database did not confirm the deletion.');
+    } finally {
+      setBusyNodeId(null);
+    }
+  };
+
+  const writeBlocked = !writable;
 
   return (
     <div className="database-gui-container">
-      {/* Session feedback banner */}
+      {/* Feedback banner — only shown after a confirmed or failed database write */}
       {feedback && (
         <div className={`db-feedback-banner ${feedback.type}`} role="status">
           {feedback.message}
@@ -196,7 +301,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
             <span className="total-badge">{nodes.length} records</span>
           </div>
           <p className="subtitle-text">
-            Simple GUI to browse, search, and edit live graph records across all organizational entities.
+            Browse, search, and edit live graph records. Writes go to the connected FalkorDB graph.
           </p>
         </div>
 
@@ -217,12 +322,28 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
             )}
           </div>
 
-          <button className="btn-add-record" onClick={() => setIsAddModalOpen(true)}>
+          <button
+            className="btn-add-record"
+            onClick={() => setIsAddModalOpen(true)}
+            disabled={writeBlocked}
+            title={writeBlocked ? writesDisabledReason || 'Writes are disabled' : 'Add a record'}
+          >
             <Plus size={15} />
             <span>Add Record</span>
           </button>
         </div>
       </header>
+
+      {/* Write-disabled notice (demo mode or disconnected) */}
+      {writeBlocked && (
+        <div className="db-client-only-notice">
+          <AlertTriangle size={13} />
+          <span>
+            {writesDisabledReason ||
+              'Record writes are disabled because the database is not connected. Connect to a live FalkorDB graph to add, edit, or delete records.'}
+          </span>
+        </div>
+      )}
 
       {/* 2. Category Tabs */}
       <div className="db-category-tabs-bar">
@@ -276,6 +397,7 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                 const status = props.status;
                 const delay = props.delay_days;
                 const isBlocked = status === 'BLOCKED' || status === 'DELAYED';
+                const isBusy = busyNodeId === node.id;
 
                 return (
                   <tr key={node.id} className="db-record-row">
@@ -326,21 +448,21 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                     {activeCategory === 'Project' && (
                       <td>
                         <span>{props.progress || 0}% complete</span>
-                        <span className="text-dim"> (Due {props.target_date || 'Q4'})</span>
+                        <span className="text-dim"> (Due {props.target_date || 'n/a'})</span>
                       </td>
                     )}
 
                     {/* Decision Impact */}
                     {activeCategory === 'Decision' && (
                       <td>
-                        <span className="impact-text">{props.impact || 'Architecture Governance'}</span>
+                        <span className="impact-text">{props.impact || 'No impact recorded'}</span>
                       </td>
                     )}
 
                     {/* Document Type */}
                     {activeCategory === 'Document' && (
                       <td>
-                        <span className="doc-type-pill">{props.type || 'Specification'}</span>
+                        <span className="doc-type-pill">{props.type || 'Document'}</span>
                       </td>
                     )}
 
@@ -357,7 +479,8 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                         <button
                           className="btn-db-action edit"
                           onClick={() => handleStartEdit(node)}
-                          title="Edit this record"
+                          disabled={writeBlocked}
+                          title={writeBlocked ? writesDisabledReason || 'Writes are disabled' : 'Edit this record'}
                         >
                           <Edit2 size={13} />
                           <span>Edit</span>
@@ -372,15 +495,11 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                         </button>
                         <button
                           className="btn-db-action delete"
-                          onClick={() => {
-                            if (window.confirm(`Delete record "${title}" (${node.id})? This only affects the current session.`)) {
-                              onDeleteNode(node.id);
-                              showFeedback('success', `Deleted “${title}” (session only — graph refreshed).`);
-                            }
-                          }}
-                          title="Delete record"
+                          onClick={() => handleDelete(node)}
+                          disabled={writeBlocked || isBusy}
+                          title={writeBlocked ? writesDisabledReason || 'Writes are disabled' : 'Delete record'}
                         >
-                          <Trash2 size={13} />
+                          {isBusy ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />}
                         </button>
                       </div>
                     </td>
@@ -394,138 +513,28 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
 
       {/* 4. Edit Record Modal */}
       {editingNode && (
-        <div className="db-modal-overlay" onClick={() => setEditingNode(null)}>
+        <div className="db-modal-overlay" onClick={() => !isSaving && setEditingNode(null)}>
           <div className="db-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
               <div className="modal-title-wrap">
                 <Edit2 size={16} className="text-strong" />
                 <h3>Edit {editingNode.label}: {editingNode.properties.name || editingNode.id}</h3>
               </div>
-              <button className="btn-close-modal" onClick={() => setEditingNode(null)}>
+              <button className="btn-close-modal" onClick={() => setEditingNode(null)} disabled={isSaving}>
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleSaveEdit} className="db-edit-form">
-              <div className="form-fields-grid">
-                <div className="form-field">
-                  <label>Title / Name</label>
-                  <input
-                    type="text"
-                    value={editFormData.name || editFormData.title || ''}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        name: e.target.value,
-                        title: e.target.value,
-                      })
-                    }
-                    className="db-form-input"
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label>Status</label>
-                  <select
-                    value={editFormData.status || 'ON_TRACK'}
-                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                    className="db-form-input"
-                  >
-                    <option value="ON_TRACK">ON_TRACK</option>
-                    <option value="IN_PROGRESS">IN_PROGRESS</option>
-                    <option value="BLOCKED">BLOCKED</option>
-                    <option value="DELAYED">DELAYED</option>
-                    <option value="APPROVED">APPROVED</option>
-                    <option value="PENDING">PENDING</option>
-                  </select>
-                </div>
-
-                <div className="form-field">
-                  <label>Delay Days (Impact)</label>
-                  <input
-                    type="number"
-                    value={editFormData.delay_days || 0}
-                    onChange={(e) =>
-                      setEditFormData({ ...editFormData, delay_days: Number(e.target.value) })
-                    }
-                    className="db-form-input"
-                  />
-                </div>
-
-                {editingNode.label === 'Person' && (
-                  <>
-                    <div className="form-field">
-                      <label>Job Role</label>
-                      <input
-                        type="text"
-                        value={editFormData.role || ''}
-                        onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                        className="db-form-input"
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label>Department / Team</label>
-                      <input
-                        type="text"
-                        value={editFormData.team || ''}
-                        onChange={(e) => setEditFormData({ ...editFormData, team: e.target.value })}
-                        className="db-form-input"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {editingNode.label === 'Task' && (
-                  <div className="form-field">
-                    <label>Priority</label>
-                    <select
-                      value={editFormData.priority || 'HIGH'}
-                      onChange={(e) => setEditFormData({ ...editFormData, priority: e.target.value })}
-                      className="db-form-input"
-                    >
-                      <option value="CRITICAL">CRITICAL</option>
-                      <option value="HIGH">HIGH</option>
-                      <option value="MEDIUM">MEDIUM</option>
-                      <option value="LOW">LOW</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className="form-field full-width">
-                <label>Summary / Blocker Context</label>
-                <textarea
-                  rows={3}
-                  value={
-                    editFormData.blocker_reason ||
-                    editFormData.summary ||
-                    editFormData.description ||
-                    ''
-                  }
-                  onChange={(e) =>
-                    setEditFormData({
-                      ...editFormData,
-                      blocker_reason: e.target.value,
-                      summary: e.target.value,
-                      description: e.target.value,
-                    })
-                  }
-                  className="db-form-input"
-                />
-              </div>
+              <RecordFields label={editingNode.label} form={editFormData} onChange={setEditFormData} />
 
               <div className="modal-actions-row">
-                <button
-                  type="button"
-                  className="btn-cancel"
-                  onClick={() => setEditingNode(null)}
-                >
+                <button type="button" className="btn-cancel" onClick={() => setEditingNode(null)} disabled={isSaving}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-save">
-                  <Check size={14} />
-                  <span>Save Changes</span>
+                <button type="submit" className="btn-save" disabled={isSaving}>
+                  {isSaving ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+                  <span>{isSaving ? 'Saving…' : 'Save Changes'}</span>
                 </button>
               </div>
             </form>
@@ -535,14 +544,14 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
 
       {/* 5. Add Record Modal */}
       {isAddModalOpen && (
-        <div className="db-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+        <div className="db-modal-overlay" onClick={() => !isSaving && setIsAddModalOpen(false)}>
           <div className="db-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-top">
               <div className="modal-title-wrap">
                 <Plus size={16} className="text-strong" />
                 <h3>Create New Record</h3>
               </div>
-              <button className="btn-close-modal" onClick={() => setIsAddModalOpen(false)}>
+              <button className="btn-close-modal" onClick={() => setIsAddModalOpen(false)} disabled={isSaving}>
                 <X size={16} />
               </button>
             </div>
@@ -553,7 +562,10 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                   <label>Record Type</label>
                   <select
                     value={newRecordLabel}
-                    onChange={(e) => setNewRecordLabel(e.target.value as NodeLabel)}
+                    onChange={(e) => {
+                      setNewRecordLabel(e.target.value as NodeLabel);
+                      setNewRecordData({ ...EMPTY_FORM });
+                    }}
                     className="db-form-input"
                   >
                     <option value="Project">Project</option>
@@ -564,94 +576,17 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
                     <option value="Team">Team</option>
                   </select>
                 </div>
-
-                <div className="form-field">
-                  <label>Name / Title</label>
-                  <input
-                    type="text"
-                    value={newRecordData.title}
-                    onChange={(e) => setNewRecordData({ ...newRecordData, title: e.target.value })}
-                    placeholder="e.g. Deploy Edge Gateway"
-                    className="db-form-input"
-                    required
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label>Status</label>
-                  <select
-                    value={newRecordData.status}
-                    onChange={(e) => setNewRecordData({ ...newRecordData, status: e.target.value })}
-                    className="db-form-input"
-                  >
-                    <option value="ON_TRACK">ON_TRACK</option>
-                    <option value="BLOCKED">BLOCKED</option>
-                    <option value="DELAYED">DELAYED</option>
-                    <option value="APPROVED">APPROVED</option>
-                    <option value="PENDING">PENDING</option>
-                  </select>
-                </div>
-
-                <div className="form-field">
-                  <label>Delay Days</label>
-                  <input
-                    type="number"
-                    value={newRecordData.delay_days}
-                    onChange={(e) =>
-                      setNewRecordData({ ...newRecordData, delay_days: Number(e.target.value) })
-                    }
-                    className="db-form-input"
-                  />
-                </div>
-
-                {newRecordLabel === 'Person' && (
-                  <>
-                    <div className="form-field">
-                      <label>Job Role</label>
-                      <input
-                        type="text"
-                        value={newRecordData.role}
-                        onChange={(e) => setNewRecordData({ ...newRecordData, role: e.target.value })}
-                        placeholder="e.g. Staff Security Architect"
-                        className="db-form-input"
-                      />
-                    </div>
-                    <div className="form-field">
-                      <label>Department / Team</label>
-                      <input
-                        type="text"
-                        value={newRecordData.team}
-                        onChange={(e) => setNewRecordData({ ...newRecordData, team: e.target.value })}
-                        placeholder="e.g. Infrastructure Security"
-                        className="db-form-input"
-                      />
-                    </div>
-                  </>
-                )}
               </div>
 
-              <div className="form-field full-width">
-                <label>Description / Blocker Summary</label>
-                <textarea
-                  rows={3}
-                  value={newRecordData.summary}
-                  onChange={(e) => setNewRecordData({ ...newRecordData, summary: e.target.value })}
-                  placeholder="Explain context, requirements, or dependencies..."
-                  className="db-form-input"
-                />
-              </div>
+              <RecordFields label={newRecordLabel} form={newRecordData} onChange={setNewRecordData} />
 
               <div className="modal-actions-row">
-                <button
-                  type="button"
-                  className="btn-cancel"
-                  onClick={() => setIsAddModalOpen(false)}
-                >
+                <button type="button" className="btn-cancel" onClick={() => setIsAddModalOpen(false)} disabled={isSaving}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-save">
-                  <Plus size={14} />
-                  <span>Create Record</span>
+                <button type="submit" className="btn-save" disabled={isSaving}>
+                  {isSaving ? <Loader2 size={14} className="spin" /> : <Plus size={14} />}
+                  <span>{isSaving ? 'Creating…' : 'Create Record'}</span>
                 </button>
               </div>
             </form>
@@ -659,6 +594,210 @@ export const DatabaseView: React.FC<DatabaseViewProps> = ({
         </div>
       )}
     </div>
+  );
+};
+
+interface RecordFieldsProps {
+  label: NodeLabel;
+  form: RecordFormState;
+  onChange: (form: RecordFormState) => void;
+}
+
+const RecordFields: React.FC<RecordFieldsProps> = ({ label, form, onChange }) => {
+  const set = (patch: Partial<RecordFormState>) => onChange({ ...form, ...patch });
+
+  return (
+    <>
+      <div className="form-fields-grid">
+        <div className="form-field">
+          <label>Title / Name</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => set({ name: e.target.value })}
+            className="db-form-input"
+            required
+          />
+        </div>
+
+        <div className="form-field">
+          <label>Status</label>
+          <select
+            value={form.status}
+            onChange={(e) => set({ status: e.target.value })}
+            className="db-form-input"
+          >
+            <option value="ON_TRACK">ON_TRACK</option>
+            <option value="IN_PROGRESS">IN_PROGRESS</option>
+            <option value="BLOCKED">BLOCKED</option>
+            <option value="DELAYED">DELAYED</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="PENDING">PENDING</option>
+          </select>
+        </div>
+
+        {(label === 'Task' || label === 'Project') && (
+          <div className="form-field">
+            <label>Delay Days (Impact)</label>
+            <input
+              type="number"
+              value={form.delay_days}
+              onChange={(e) => set({ delay_days: Number(e.target.value) })}
+              className="db-form-input"
+            />
+          </div>
+        )}
+
+        {label === 'Project' && (
+          <>
+            <div className="form-field">
+              <label>Progress (%)</label>
+              <input
+                type="number"
+                value={form.progress}
+                onChange={(e) => set({ progress: Number(e.target.value) })}
+                className="db-form-input"
+              />
+            </div>
+            <div className="form-field">
+              <label>Target Date</label>
+              <input
+                type="text"
+                value={form.target_date}
+                onChange={(e) => set({ target_date: e.target.value })}
+                placeholder="e.g. 2026-11-15"
+                className="db-form-input"
+              />
+            </div>
+          </>
+        )}
+
+        {label === 'Person' && (
+          <>
+            <div className="form-field">
+              <label>Job Role</label>
+              <input
+                type="text"
+                value={form.role}
+                onChange={(e) => set({ role: e.target.value })}
+                className="db-form-input"
+              />
+            </div>
+            <div className="form-field">
+              <label>Department / Team</label>
+              <input
+                type="text"
+                value={form.team}
+                onChange={(e) => set({ team: e.target.value })}
+                className="db-form-input"
+              />
+            </div>
+          </>
+        )}
+
+        {label === 'Team' && (
+          <>
+            <div className="form-field">
+              <label>Department</label>
+              <input
+                type="text"
+                value={form.department}
+                onChange={(e) => set({ department: e.target.value })}
+                className="db-form-input"
+              />
+            </div>
+            <div className="form-field">
+              <label>Lead Name</label>
+              <input
+                type="text"
+                value={form.lead_name}
+                onChange={(e) => set({ lead_name: e.target.value })}
+                className="db-form-input"
+              />
+            </div>
+          </>
+        )}
+
+        {label === 'Task' && (
+          <div className="form-field">
+            <label>Priority</label>
+            <select
+              value={form.priority}
+              onChange={(e) => set({ priority: e.target.value })}
+              className="db-form-input"
+            >
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
+            </select>
+          </div>
+        )}
+
+        {label === 'Document' && (
+          <>
+            <div className="form-field">
+              <label>Document Type</label>
+              <input
+                type="text"
+                value={form.type}
+                onChange={(e) => set({ type: e.target.value })}
+                placeholder="e.g. ADR, RFC, Policy"
+                className="db-form-input"
+              />
+            </div>
+            <div className="form-field">
+              <label>URL</label>
+              <input
+                type="text"
+                value={form.url}
+                onChange={(e) => set({ url: e.target.value })}
+                className="db-form-input"
+              />
+            </div>
+          </>
+        )}
+
+        {label === 'Decision' && (
+          <>
+            <div className="form-field">
+              <label>Impact</label>
+              <input
+                type="text"
+                value={form.impact}
+                onChange={(e) => set({ impact: e.target.value })}
+                className="db-form-input"
+              />
+            </div>
+            <div className="form-field">
+              <label>Rationale</label>
+              <input
+                type="text"
+                value={form.rationale}
+                onChange={(e) => set({ rationale: e.target.value })}
+                className="db-form-input"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="form-field full-width">
+        <label>
+          {label === 'Task'
+            ? 'Blocker Context'
+            : label === 'Project'
+            ? 'Description'
+            : 'Summary / Details'}
+        </label>
+        <textarea
+          rows={3}
+          value={form.summary}
+          onChange={(e) => set({ summary: e.target.value })}
+          className="db-form-input"
+        />
+      </div>
+    </>
   );
 };
 

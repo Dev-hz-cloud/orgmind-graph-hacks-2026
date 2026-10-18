@@ -32,9 +32,9 @@ interface DataConnectionsViewProps {
 
 const CYPHER_PRESETS = [
   {
-    name: 'Critical Path: Titan Delayed Tasks',
+    name: 'Blocked Tasks on the Critical Path',
     query:
-      'MATCH (p:Project {id: "proj-titan"})-[:HAS_TASK]->(t:Task)-[:BLOCKED_BY]->(b:Task) RETURN p.name AS project, t.name AS blocked_task, b.name AS blocking_task, b.delay_days AS delay;',
+      'MATCH (p:Project)-[:HAS_TASK]->(t:Task)-[:BLOCKED_BY]->(b:Task) RETURN p.name AS project, t.name AS blocked_task, b.name AS blocking_task, b.delay_days AS delay;',
   },
   {
     name: 'Pending Decisions & Their Owners',

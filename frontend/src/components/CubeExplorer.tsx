@@ -16,6 +16,8 @@ import {
   GitBranch,
   MousePointer2,
   ChevronRight,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { EvidenceItem, GraphEdge, GraphNode } from '../types';
 import {
@@ -325,6 +327,11 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   /** Nonce of the focus request already applied (render-phase sync guard) */
   const [appliedFocus, setAppliedFocus] = useState<number | null>(null);
+
+  /* ---------------------------------------------------------------- Lock-In */
+  const [lockedIn, setLockedIn] = useState(false);
+  const [sensitivity, setSensitivity] = useState(0.36);
+  const [yawInvert, setYawInvert] = useState(false);
 
   /* ---------------------------------------------------------------- geometry */
 
@@ -679,6 +686,51 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  /* --------------------------------------------------------- Pointer Lock-In */
+
+  const sensitivityRef = useRef(sensitivity);
+  sensitivityRef.current = sensitivity;
+  const yawInvertRef = useRef(yawInvert);
+  yawInvertRef.current = yawInvert;
+
+  const toggleLockIn = useCallback(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    if (document.pointerLockElement === el) {
+      document.exitPointerLock();
+    } else {
+      el.requestPointerLock();
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+
+    const onLockChange = () => {
+      setLockedIn(document.pointerLockElement === el);
+    };
+
+    const onLockedMove = (e: MouseEvent) => {
+      if (document.pointerLockElement !== el) return;
+      const s = sensitivityRef.current;
+      const yi = yawInvertRef.current;
+      const direction = yi ? -1 : 1;
+      const dyaw = -e.movementX * s * direction;
+      const dpitch = -e.movementY * s * direction;
+      setAnimated(false);
+      setRy((r) => normalizeAngle(r + dyaw));
+      setRx((r) => normalizeAngle(r + dpitch));
+    };
+
+    document.addEventListener('pointerlockchange', onLockChange);
+    document.addEventListener('mousemove', onLockedMove);
+    return () => {
+      document.removeEventListener('pointerlockchange', onLockChange);
+      document.removeEventListener('mousemove', onLockedMove);
+    };
   }, []);
 
   const handleKeyDown = useCallback(
@@ -1238,6 +1290,93 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
               ))}
             </div>
 
+            {/* Roll The Cube — Lock-In floating panel */}
+            <div className={`cube-lockin-panel ${lockedIn ? 'is-locked' : ''}`}>
+              <div className="cube-lockin-header">
+                <span className="cube-lockin-icon">◎</span>
+                <span>ROLL THE CUBE</span>
+              </div>
+
+              {/* Wireframe sphere */}
+              <div className="cube-lockin-sphere" aria-hidden="true">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.8" />
+                  <ellipse cx="50" cy="50" rx="42" ry="16" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.6" />
+                  <ellipse cx="50" cy="50" rx="16" ry="42" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="0.6"
+                    transform={`rotate(${ry % 360}, 50, 50)`}
+                  />
+                  <ellipse cx="50" cy="50" rx="42" ry="8" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.5"
+                    transform={`rotate(${rx}, 50, 50)`}
+                  />
+                  {/* Crosshair */}
+                  <line x1="50" y1="4" x2="50" y2="96" stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />
+                  <line x1="4" y1="50" x2="96" y2="50" stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />
+                  {/* Rotation indicator dot */}
+                  <circle
+                    cx={50 + 42 * Math.sin(ry * DEG) * Math.cos(rx * DEG)}
+                    cy={50 - 42 * Math.sin(rx * DEG)}
+                    r="3" fill="#D71921" opacity="0.9"
+                  />
+                </svg>
+              </div>
+
+              {/* Angle readout */}
+              <div className="cube-lockin-readout">
+                <span>yaw {Math.round(((ry % 360) + 360) % 360).toString().padStart(2, '0')}°</span>
+                <span className="cube-lockin-readout-sep">·</span>
+                <span>pitch {Math.round(rx)}°</span>
+              </div>
+
+              {/* Sensitivity slider */}
+              <div className="cube-lockin-slider-row">
+                <span className="cube-lockin-slider-label">SENS</span>
+                <input
+                  type="range"
+                  className="cube-lockin-slider"
+                  min="0.05"
+                  max="1"
+                  step="0.01"
+                  value={sensitivity}
+                  onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+                  title={`Sensitivity: ${sensitivity.toFixed(2)}`}
+                />
+                <span className="cube-lockin-slider-value">{sensitivity.toFixed(2)}</span>
+              </div>
+
+              {/* Action buttons */}
+              <div className="cube-lockin-buttons">
+                <button
+                  type="button"
+                  className={`cube-lockin-btn cube-lockin-btn-primary ${lockedIn ? 'is-active' : ''}`}
+                  onClick={toggleLockIn}
+                  title={lockedIn ? 'Release pointer (Esc)' : 'Lock pointer to cube for free rotation'}
+                >
+                  {lockedIn ? <Unlock size={12} /> : <Lock size={12} />}
+                  <span>{lockedIn ? 'Unlock' : 'Lock In'}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`cube-lockin-btn ${yawInvert ? 'is-active' : ''}`}
+                  onClick={() => setYawInvert((v) => !v)}
+                  title="Invert yaw axis"
+                >
+                  Yi
+                </button>
+                <button
+                  type="button"
+                  className="cube-lockin-btn"
+                  onClick={resetView}
+                  title="Reset rotation (R)"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </div>
+
+              <div className="cube-lockin-footer">
+                {lockedIn ? 'ESC • UNLOCK' : 'CLICK • LOCK IN'}
+              </div>
+            </div>
+
             <div className="cube-hint">
               <MousePointer2 size={11} />
               <span>drag rotate</span>
@@ -1251,6 +1390,8 @@ export const CubeExplorer: React.FC<CubeExplorerProps> = ({
               <span>F fit</span>
               <span className="cube-hint-sep">·</span>
               <span>R reset</span>
+              <span className="cube-hint-sep">·</span>
+              <span>sphere: click to lock</span>
             </div>
           </div>
         )}

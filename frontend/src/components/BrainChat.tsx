@@ -22,6 +22,7 @@ import { AnswerText } from './AnswerText';
 
 interface BrainChatProps {
   selectedProject: string | null;
+  projects: Array<{ id: string; name: string }>;
   onSelectProject: (projectId: string | null) => void;
   onAskQuestion: (query: string) => Promise<void>;
   isLoading: boolean;
@@ -31,7 +32,7 @@ interface BrainChatProps {
 }
 
 const SUGGESTIONS = [
-  'Why is Project Titan delayed?',
+  'Why is this project delayed?',
   'Which tasks are blocking this launch?',
   'Who owns the blocking task?',
   'Which decisions are still pending?',
@@ -40,6 +41,7 @@ const SUGGESTIONS = [
 
 export const BrainChat: React.FC<BrainChatProps> = ({
   selectedProject,
+  projects,
   onSelectProject,
   onAskQuestion,
   isLoading,
@@ -103,30 +105,25 @@ export const BrainChat: React.FC<BrainChatProps> = ({
           </div>
 
           <div className="project-pill-selector">
-            <button
-              className={`project-pill ${selectedProject === 'proj-titan' ? 'is-active' : ''}`}
-              onClick={() => onSelectProject('proj-titan')}
-            >
-              Project Titan
-            </button>
-            <button
-              className={`project-pill ${selectedProject === 'proj-apollo' ? 'is-active' : ''}`}
-              onClick={() => onSelectProject('proj-apollo')}
-            >
-              Project Apollo
-            </button>
-            <button
-              className={`project-pill ${selectedProject === 'proj-mercury' ? 'is-active' : ''}`}
-              onClick={() => onSelectProject('proj-mercury')}
-            >
-              Project Mercury
-            </button>
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                className={`project-pill ${selectedProject === project.id ? 'is-active' : ''}`}
+                onClick={() => onSelectProject(project.id)}
+                title={project.id}
+              >
+                {project.name}
+              </button>
+            ))}
             <button
               className={`project-pill ${selectedProject === null ? 'is-active' : ''}`}
               onClick={() => onSelectProject(null)}
             >
               All Projects
             </button>
+            {projects.length === 0 && (
+              <span className="project-pill-empty">No project records in the database yet</span>
+            )}
           </div>
         </div>
 

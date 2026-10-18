@@ -23,14 +23,31 @@ class Settings(BaseModel):
     falkordb_graph: str = os.getenv("FALKORDB_GRAPH", "orgmind_demo")
     falkordb_ssl: bool = os.getenv("FALKORDB_SSL", "false").lower() in ("true", "1", "yes")
     demo_mode: bool = os.getenv("DEMO_MODE", "true").lower() in ("true", "1", "yes")
+    orgmind_allow_live_writes: bool = os.getenv("ORGMIND_ALLOW_LIVE_WRITES", "false").lower() in ("true", "1", "yes")
     backend_port: int = int(os.getenv("BACKEND_PORT", "8000"))
     cors_origins: list[str] = [
         origin.strip()
         for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000").split(",")
         if origin.strip()
     ]
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    sqlite_db_path: str = os.getenv(
+        "SQLITE_DB_PATH",
+        str(root_dir / "backend" / "data" / "orgmind_memory.db")
+    )
 
 _settings = Settings()
+if not _settings.groq_api_key:
+    _groq_path = Path("/home/manav/Downloads/groqapi.txt")
+    if _groq_path.exists():
+        try:
+            _val = _groq_path.read_text().strip()
+            if _val:
+                _settings.groq_api_key = _val
+        except Exception:
+            pass
 
 def get_settings() -> Settings:
     return _settings

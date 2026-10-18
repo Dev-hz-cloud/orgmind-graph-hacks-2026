@@ -34,16 +34,34 @@ export async function fetchSchema(): Promise<GraphSchema> {
   return res.json();
 }
 
-export async function askQuestion(query: string, projectContext?: string): Promise<QuestionResponse> {
+export async function askQuestion(query: string, projectContext?: string, sessionId?: string): Promise<QuestionResponse> {
   const res = await fetch(`${BASE_URL}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, project_context: projectContext }),
+    body: JSON.stringify({ query, project_context: projectContext, session_id: sessionId }),
   });
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
     throw new Error(errorBody.detail || `Query failed with status ${res.status}`);
   }
+  return res.json();
+}
+
+export async function fetchChatHistory(sessionId: string): Promise<{
+  session_id: string;
+  messages: Array<{ id: string; role: string; content: string; evidence: any[]; created_at: number }>;
+  facts: Array<{ id: string; fact_text: string; entity_ref?: string; created_at: number }>;
+}> {
+  const res = await fetch(`${BASE_URL}/chat/history?session_id=${encodeURIComponent(sessionId)}`);
+  if (!res.ok) throw new Error(`Failed to fetch history: ${res.statusText}`);
+  return res.json();
+}
+
+export async function clearChatHistory(sessionId: string): Promise<{ success: boolean; session_id: string }> {
+  const res = await fetch(`${BASE_URL}/chat/clear?session_id=${encodeURIComponent(sessionId)}`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Failed to clear history: ${res.statusText}`);
   return res.json();
 }
 
@@ -118,5 +136,50 @@ export async function executeCypher(cypher: string, params: Record<string, any> 
     body: JSON.stringify({ cypher, params }),
   });
   if (!res.ok) throw new Error(`Cypher execution failed: ${res.statusText}`);
+  return res.json();
+}
+
+export interface RecordMutationResult {
+  success: boolean;
+  node?: GraphNode;
+  deleted_id?: string;
+  error?: string;
+  error_code?: string;
+  mode: string;
+  graph_name?: string;
+}
+
+async function parseRecordError(res: Response): Promise<string> {
+  const body = await res.json().catch(() => ({}));
+  if (body && typeof body.detail === 'string') return body.detail;
+  if (body && typeof body.error === 'string') return body.error;
+  return `Request failed with status ${res.status}`;
+}
+
+export async function createRecord(label: string, properties: Record<string, any>): Promise<RecordMutationResult> {
+  const res = await fetch(`${BASE_URL}/records`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label, properties }),
+  });
+  if (!res.ok) throw new Error(await parseRecordError(res));
+  return res.json();
+}
+
+export async function updateRecord(nodeId: string, label: string, properties: Record<string, any>): Promise<RecordMutationResult> {
+  const res = await fetch(`${BASE_URL}/records/${encodeURIComponent(nodeId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label, properties }),
+  });
+  if (!res.ok) throw new Error(await parseRecordError(res));
+  return res.json();
+}
+
+export async function deleteRecord(nodeId: string): Promise<RecordMutationResult> {
+  const res = await fetch(`${BASE_URL}/records/${encodeURIComponent(nodeId)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(await parseRecordError(res));
   return res.json();
 }

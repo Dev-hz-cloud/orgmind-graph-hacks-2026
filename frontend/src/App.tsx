@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   fetchConfig,
   fetchSchema,
   fetchGraph,
   askQuestion,
   seedDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
 } from './services/api';
 import type {
   AppConfig,
@@ -13,6 +15,7 @@ import type {
   GraphNode,
   GraphEdge,
   QuestionResponse,
+  NodeLabel,
 } from './types';
 import { FocusRequest, nextFocusNonce } from './shared/dimensions';
 import { Sidebar, MainTab } from './components/Sidebar';
@@ -29,12 +32,19 @@ export const App: React.FC = () => {
   const [schema, setSchema] = useState<GraphSchema | null>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string | null>('proj-titan');
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
 
   // Main Tabs: 'chat' (Assistant) | 'flow' (Booklet Directory + n8n Cube Canvas)
   const [activeTab, setActiveTab] = useState<MainTab>('chat');
 
   // Brain Q&A State
+  const [sessionId, setSessionId] = useState<string>(() => {
+    const saved = localStorage.getItem('orgmind_session_id');
+    if (saved) return saved;
+    const newId = `sess-${Math.random().toString(36).substring(2, 10)}`;
+    localStorage.setItem('orgmind_session_id', newId);
+    return newId;
+  });
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
   const [currentResponse, setCurrentResponse] = useState<QuestionResponse | null>(null);
   const [highlightNodes, setHighlightNodes] = useState<string[]>([]);
@@ -69,17 +79,21 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Initial load: trigger primary question
+  // Initial load: fetch whatever records actually exist. No project is assumed
+  // and no question is fabricated on startup.
   useEffect(() => {
     loadGraphData(selectedProject);
-    handleAskQuestion('Why is Project Titan delayed?');
   }, []);
 
   const handleAskQuestion = async (query: string) => {
     setIsLoadingAnswer(true);
     try {
-      const response = await askQuestion(query, selectedProject || undefined);
+      const response = await askQuestion(query, selectedProject || undefined, sessionId);
       setCurrentResponse(response);
+      if (response.session_id && response.session_id !== sessionId) {
+        setSessionId(response.session_id);
+        localStorage.setItem('orgmind_session_id', response.session_id);
+      }
       setHighlightNodes(response.highlight_nodes);
       setHighlightEdges(response.highlight_edges);
     } catch (err: any) {
@@ -103,18 +117,8 @@ export const App: React.FC = () => {
   const handleSelectProject = (projectId: string | null) => {
     setSelectedProject(projectId);
     loadGraphData(projectId);
-    if (projectId) {
-      const projName =
-        projectId === 'proj-titan'
-          ? 'Project Titan'
-          : projectId === 'proj-mercury'
-          ? 'Project Mercury'
-          : 'Project Apollo';
-      handleAskQuestion(`Why is ${projName} delayed?`);
-    } else {
-      setHighlightNodes([]);
-      setHighlightEdges([]);
-    }
+    setHighlightNodes([]);
+    setHighlightEdges([]);
   };
 
   const handleClearHighlight = () => {
@@ -124,24 +128,63 @@ export const App: React.FC = () => {
     setGraphSelectedId(null);
   };
 
-  // Database View record handlers (CLIENT-SIDE ONLY).
-  // The backend exposes no node CRUD API, so these update local state only
-  // and are discarded on reload, project switch, or re-seed.
-  const handleUpdateNode = (updatedNode: GraphNode) => {
-    setNodes((prev) => prev.map((n) => (n.id === updatedNode.id ? updatedNode : n)));
+  // Database View record handlers — persist through the backend record API and
+  // reload the graph from the source of truth after a confirmed write.
+  const handleCreateRecord = async (label: NodeLabel, properties: Record<string, any>) => {
+    const result = await createRecord(label, properties);
+    if (result.success) {
+      await loadGraphData(selectedProject);
+    }
+    return result;
   };
 
-  const handleAddNode = (newNode: GraphNode) => {
-    setNodes((prev) => [...prev, newNode]);
+  const handleUpdateRecord = async (
+    nodeId: string,
+    label: NodeLabel,
+    properties: Record<string, any>
+  ) => {
+    const result = await updateRecord(nodeId, label, properties);
+    if (result.success) {
+      await loadGraphData(selectedProject);
+    }
+    return result;
   };
 
-  const handleDeleteNode = (nodeId: string) => {
-    setNodes((prev) => prev.filter((n) => n.id !== nodeId));
-    // Prune edges referencing the deleted node so the graph canvas stays consistent
-    setEdges((prev) => prev.filter((e) => e.src !== nodeId && e.dst !== nodeId));
-    if (flashcardNodeId === nodeId) setFlashcardNodeId(null);
-    if (graphSelectedId === nodeId) setGraphSelectedId(null);
+  const handleDeleteRecord = async (nodeId: string) => {
+    const result = await deleteRecord(nodeId);
+    if (result.success) {
+      await loadGraphData(selectedProject);
+      if (flashcardNodeId === nodeId) setFlashcardNodeId(null);
+      if (graphSelectedId === nodeId) setGraphSelectedId(null);
+    }
+    return result;
   };
+
+  // Project choices are read from actual Project records, never hardcoded.
+  const projects = useMemo(
+    () =>
+      nodes
+        .filter((n) => n.label === 'Project')
+        .map((n) => ({
+          id: n.id,
+          name: (n.properties?.name as string) || (n.properties?.title as string) || n.id,
+        })),
+    [nodes]
+  );
+
+  const writesEnabled =
+    config?.mode === 'live' &&
+    config?.is_connected === true &&
+    config?.allow_live_writes === true;
+  const writesDisabledReason = !config
+    ? null
+    : config.mode === 'demo'
+    ? 'Writes are disabled in Demo Mode. Connect to a live FalkorDB graph to add, edit, or delete records.'
+    : !config.is_connected
+    ? 'Writes are disabled because the database is not connected. Reconnect to a live FalkorDB graph to make changes.'
+    : !config.allow_live_writes
+    ? 'Writes to the live graph are disabled. Set ORGMIND_ALLOW_LIVE_WRITES=true on the backend and restart it to enable adding, editing, or deleting records.'
+    : null;
 
   const handleSeedData = async () => {
     setIsSeeding(true);
@@ -186,6 +229,7 @@ export const App: React.FC = () => {
         {activeTab === 'chat' && (
           <BrainChat
             selectedProject={selectedProject}
+            projects={projects}
             onSelectProject={handleSelectProject}
             onAskQuestion={handleAskQuestion}
             isLoading={isLoadingAnswer}
@@ -197,15 +241,6 @@ export const App: React.FC = () => {
 
         {activeTab === 'database' && (
           <div className="database-tab-shell">
-            <div className="db-client-only-notice">
-              <AlertTriangle size={13} />
-              <span>
-                <strong>Directory</strong> (left) is a read-only browse of loaded graph records.{' '}
-                <strong>Records table</strong> edits are session-only — stored in browser memory and{' '}
-                <strong>not written to FalkorDB</strong>. Changes reset on reload, project switch, or
-                re-seed.
-              </span>
-            </div>
             <div className="database-workspace">
               <DirectoryIndex
                 nodes={nodes}
@@ -215,9 +250,11 @@ export const App: React.FC = () => {
               />
               <DatabaseView
                 nodes={nodes}
-                onUpdateNode={handleUpdateNode}
-                onAddNode={handleAddNode}
-                onDeleteNode={handleDeleteNode}
+                writable={writesEnabled}
+                writesDisabledReason={writesDisabledReason}
+                onCreateRecord={handleCreateRecord}
+                onUpdateRecord={handleUpdateRecord}
+                onDeleteRecord={handleDeleteRecord}
                 onOpenFlashcard={(nodeId) => setFlashcardNodeId(nodeId)}
               />
             </div>

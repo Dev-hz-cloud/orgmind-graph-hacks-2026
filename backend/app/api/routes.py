@@ -8,10 +8,25 @@ from app.api.models import (
     QuestionResponse,
     TestConnectionRequest,
     DirectCypherRequest,
-    ConnectionStatusResponse
+    ConnectionStatusResponse,
+    RecordCreateRequest,
+    RecordUpdateRequest,
+    RecordMutationResponse,
 )
 
 router = APIRouter(prefix="/api")
+
+
+def _record_error_status(error_code: Optional[str]) -> int:
+    """Map a record write error code to an HTTP status."""
+    if error_code == "write_disabled":
+        return 409
+    if error_code == "not_found":
+        return 404
+    if error_code == "validation":
+        return 400
+    return 500
+
 
 
 @router.get("/health")
@@ -40,6 +55,7 @@ def get_config():
         "falkordb_ssl": settings.falkordb_ssl,
         "mode": falkor.mode,
         "is_connected": falkor.is_connected,
+        "allow_live_writes": settings.orgmind_allow_live_writes,
         "last_error": falkor.last_error
     }
 
@@ -114,12 +130,12 @@ def switch_demo_mode():
 
 
 @router.post("/seed")
-def seed_database():
+def seed_database(opt_in: bool = False, force: bool = False):
     """
     Idempotently seed the active database (live FalkorDB or demo engine).
     """
     falkor = get_falkor_service()
-    result = falkor.seed()
+    result = falkor.seed(opt_in=opt_in, force=force)
     return result
 
 
@@ -138,8 +154,31 @@ def get_schema():
 @router.post("/query", response_model=QuestionResponse)
 def ask_brain(req: QuestionRequest):
     brain = get_brain_service()
-    result = brain.answer_question(query=req.query, project_context=req.project_context)
+    result = brain.answer_question(
+        query=req.query,
+        project_context=req.project_context,
+        session_id=req.session_id
+    )
     return result
+
+
+@router.get("/chat/history")
+def get_chat_history(session_id: str = Query(..., description="Session identifier")):
+    from app.services.memory import get_memory_service
+    mem = get_memory_service()
+    return {
+        "session_id": session_id,
+        "messages": mem.get_messages(session_id),
+        "facts": mem.get_facts(session_id)
+    }
+
+
+@router.post("/chat/clear")
+def clear_chat_history(session_id: str = Query(..., description="Session identifier")):
+    from app.services.memory import get_memory_service
+    mem = get_memory_service()
+    mem.clear_session(session_id)
+    return {"success": True, "session_id": session_id}
 
 
 @router.post("/cypher")
@@ -149,3 +188,52 @@ def run_direct_cypher(req: DirectCypherRequest):
     """
     falkor = get_falkor_service()
     return falkor.execute_cypher(req.cypher, req.params)
+
+
+@router.post("/records", response_model=RecordMutationResponse)
+def create_record(req: RecordCreateRequest):
+    """
+    Create a database record for an allowlisted node label.
+
+    Writes are refused (HTTP 409) unless the service is connected to a live
+    FalkorDB graph and the operator has opted in with
+    ORGMIND_ALLOW_LIVE_WRITES=true. Values are always bound as query parameters.
+    """
+    falkor = get_falkor_service()
+    result = falkor.create_record(req.label, req.properties)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=_record_error_status(result.get("error_code")),
+            detail=result.get("error", "Record could not be created.")
+        )
+    return result
+
+
+@router.put("/records/{node_id}", response_model=RecordMutationResponse)
+def update_record(node_id: str, req: RecordUpdateRequest):
+    """
+    Update allowlisted properties on an existing record.
+    """
+    falkor = get_falkor_service()
+    result = falkor.update_record(node_id, req.label, req.properties)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=_record_error_status(result.get("error_code")),
+            detail=result.get("error", "Record could not be updated.")
+        )
+    return result
+
+
+@router.delete("/records/{node_id}", response_model=RecordMutationResponse)
+def delete_record(node_id: str):
+    """
+    Delete a record and its relationships.
+    """
+    falkor = get_falkor_service()
+    result = falkor.delete_record(node_id)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=_record_error_status(result.get("error_code")),
+            detail=result.get("error", "Record could not be deleted.")
+        )
+    return result

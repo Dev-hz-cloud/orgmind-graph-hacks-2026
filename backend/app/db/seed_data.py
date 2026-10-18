@@ -388,7 +388,10 @@ def generate_seed_cypher() -> List[Tuple[str, Dict[str, Any]]]:
     for node in DEMO_NODES:
         label = node["label"]
         node_id = node["id"]
-        props = node["properties"]
+        props = dict(node["properties"])
+        props["_demo"] = True
+        props["is_demo"] = True
+        props["dataset"] = "novatech-logistics"
         # Use MERGE on unique ID and ON CREATE / ON MATCH SET
         cypher = f"""
         MERGE (n:{label} {{id: $id}})
@@ -402,7 +405,10 @@ def generate_seed_cypher() -> List[Tuple[str, Dict[str, Any]]]:
         src = edge["src"]
         rel = edge["rel"]
         dst = edge["dst"]
-        props = edge.get("properties", {})
+        props = dict(edge.get("properties", {}))
+        props["_demo"] = True
+        props["is_demo"] = True
+        props["dataset"] = "novatech-logistics"
         cypher = f"""
         MATCH (a {{id: $src}}), (b {{id: $dst}})
         MERGE (a)-[r:{rel}]->(b)

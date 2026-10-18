@@ -17,6 +17,14 @@ except ImportError:
 
 from app.config import get_settings, Settings
 from app.db.seed_data import DEMO_NODES, DEMO_EDGES, generate_seed_cypher
+from app.db.record_schema import (
+    RECORD_LABELS,
+    RecordValidationError,
+    generate_id,
+    has_title,
+    normalize_properties,
+    validate_label,
+)
 
 logger = logging.getLogger("orgmind.falkor")
 
@@ -157,11 +165,34 @@ class FalkorDBService:
                 "error": f"FalkorDB test error: {str(e)}"
             }
 
-    def seed(self) -> Dict[str, Any]:
+    def seed(self, opt_in: bool = False, force: bool = False) -> Dict[str, Any]:
         """
         Idempotently seed the database with NovaTech demo company records.
+        Requires explicit opt_in=True when seeding live database to prevent accidental mutations.
         """
         if self.mode == "live" and self.graph:
+            if not opt_in and not force:
+                return {
+                    "success": False,
+                    "error": "Database mutation rejected: live FalkorDB seeding requires explicit opt-in confirmation (opt_in=True or --confirm).",
+                    "mode": "live",
+                    "graph_name": self.graph_name,
+                }
+            # Collision protection check
+            if not force:
+                try:
+                    check = self.graph.query("MATCH (n) WHERE NOT (n._demo = true OR n.is_demo = true) RETURN count(n) AS cnt")
+                    non_demo_count = check.result_set[0][0] if check.result_set else 0
+                    if non_demo_count > 0:
+                        return {
+                            "success": False,
+                            "error": f"Collision protection active: found {non_demo_count} existing non-demo node(s) in graph '{self.graph_name}'. Aborting seed to preserve user data. Use force=True to override.",
+                            "mode": "live",
+                            "graph_name": self.graph_name,
+                        }
+                except Exception as e:
+                    logger.warning(f"Collision check error (ignoring for fresh graph): {e}")
+
             statements = generate_seed_cypher()
             executed = 0
             for cypher, params in statements:
@@ -326,7 +357,16 @@ class FalkorDBService:
                     "edge_count": len(edges)
                 }
             except Exception as e:
-                logger.warning(f"Error fetching live graph, falling back to demo graph: {e}")
+                logger.error(f"Error fetching live graph: {e}")
+                return {
+                    "nodes": [],
+                    "edges": [],
+                    "mode": "live",
+                    "error": str(e),
+                    "graph_name": self.graph_name,
+                    "node_count": 0,
+                    "edge_count": 0
+                }
 
         # Demo mode in-memory data
         nodes = list(self.mock_nodes.values())
@@ -400,6 +440,217 @@ class FalkorDBService:
             "mode": self.mode,
             "graph_name": self.graph_name,
             "is_connected": self.is_connected
+        }
+
+
+    # ------------------------------------------------------------------
+    # Record CRUD (GUI writes)
+    #
+    # Writes are only permitted against a live, connected FalkorDB graph AND
+    # only when the operator has explicitly opted in via the
+    # ORGMIND_ALLOW_LIVE_WRITES configuration setting. In demo mode, when
+    # disconnected, or when the opt-in is absent every write is refused
+    # explicitly so the caller can never mistake an in-memory change for a
+    # persisted one. Read-only graph queries are never affected by this guard.
+    # ------------------------------------------------------------------
+
+    def _write_guard(self) -> Optional[Dict[str, Any]]:
+        """
+        Return an error result when writes are not permitted, otherwise None.
+
+        A write is permitted only when all of the following hold:
+          * the service is in live mode,
+          * it is connected to a graph handle,
+          * the operator explicitly enabled ORGMIND_ALLOW_LIVE_WRITES.
+        """
+        if self.mode != "live" or not self.is_connected or self.graph is None:
+            return {
+                "success": False,
+                "error": (
+                    "Write rejected: the database is not connected. "
+                    f"Current mode is '{self.mode}'. Connect to a live FalkorDB "
+                    "graph before creating, editing, or deleting records."
+                ),
+                "error_code": "write_disabled",
+                "mode": self.mode,
+            }
+
+        if not getattr(self.settings, "orgmind_allow_live_writes", False):
+            return {
+                "success": False,
+                "error": (
+                    "Write rejected: live database writes are disabled. "
+                    "Set ORGMIND_ALLOW_LIVE_WRITES=true in the backend environment "
+                    "and restart the service to enable creating, editing, or "
+                    "deleting records in the connected graph."
+                ),
+                "error_code": "write_disabled",
+                "mode": self.mode,
+            }
+
+        return None
+
+    @staticmethod
+    def _build_record(label: str, node_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": node_id,
+            "label": label,
+            "properties": dict(properties),
+        }
+
+    def create_record(self, label: str, properties: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new record node of an allowlisted label using a parameterized
+        query. Returns a result dict; never raises for expected failures.
+        """
+        guard = self._write_guard()
+        if guard:
+            return guard
+
+        try:
+            clean_label = validate_label(label)
+            clean_props = normalize_properties(clean_label, properties)
+        except RecordValidationError as exc:
+            return {"success": False, "error": str(exc), "error_code": "validation", "mode": self.mode}
+
+        if not has_title(clean_props):
+            return {
+                "success": False,
+                "error": "A non-empty 'name' or 'title' is required to create a record.",
+                "error_code": "validation",
+                "mode": self.mode,
+            }
+
+        node_id = generate_id(clean_label)
+        clean_props["id"] = node_id
+        # clean_label is from the allowlist and clean_props values are bound as
+        # parameters, so neither the label nor the values are interpolated.
+        cypher = (
+            f"CREATE (n:{clean_label} {{id: $id}}) "
+            "SET n += $props "
+            "RETURN n.id AS id"
+        )
+        try:
+            self.graph.query(cypher, {"id": node_id, "props": clean_props})
+        except Exception as exc:
+            logger.error(f"Error creating {clean_label} record: {exc}")
+            return {"success": False, "error": f"Database write failed: {exc}", "mode": self.mode}
+
+        return {
+            "success": True,
+            "node": self._build_record(clean_label, node_id, clean_props),
+            "mode": "live",
+            "graph_name": self.graph_name,
+        }
+
+    def update_record(
+        self, node_id: str, label: str, properties: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Update an existing record. The id is immutable and is never used as a
+        SET target; only allowlisted properties are written.
+        """
+        guard = self._write_guard()
+        if guard:
+            return guard
+
+        if not isinstance(node_id, str) or not node_id.strip():
+            return {"success": False, "error": "A record id is required.", "error_code": "validation", "mode": self.mode}
+        node_id = node_id.strip()
+
+        try:
+            clean_label = validate_label(label)
+            clean_props = normalize_properties(clean_label, properties)
+        except RecordValidationError as exc:
+            return {"success": False, "error": str(exc), "error_code": "validation", "mode": self.mode}
+
+        if not clean_props:
+            return {
+                "success": False,
+                "error": "No updatable properties were provided.",
+                "error_code": "validation",
+                "mode": self.mode,
+            }
+
+        try:
+            exists = self.graph.query(
+                f"MATCH (n:{clean_label} {{id: $id}}) RETURN n.id AS id",
+                {"id": node_id},
+            )
+            if not (getattr(exists, "result_set", None) or []):
+                return {
+                    "success": False,
+                    "error": f"No {clean_label} record with id '{node_id}' was found.",
+                    "error_code": "not_found",
+                    "mode": self.mode,
+                }
+
+            set_clause = ", ".join(f"n.{key} = ${key}" for key in sorted(clean_props.keys()))
+            cypher = (
+                f"MATCH (n:{clean_label} {{id: $id}}) "
+                f"SET {set_clause} "
+                "RETURN n.id AS id"
+            )
+            self.graph.query(cypher, {"id": node_id, **clean_props})
+        except Exception as exc:
+            logger.error(f"Error updating {clean_label} record {node_id}: {exc}")
+            return {"success": False, "error": f"Database write failed: {exc}", "mode": self.mode}
+
+        return {
+            "success": True,
+            "node": self._build_record(clean_label, node_id, clean_props),
+            "mode": "live",
+            "graph_name": self.graph_name,
+        }
+
+    def delete_record(self, node_id: str) -> Dict[str, Any]:
+        """
+        Delete a record node and its relationships. Only nodes carrying an
+        allowlisted record label may be deleted.
+        """
+        guard = self._write_guard()
+        if guard:
+            return guard
+
+        if not isinstance(node_id, str) or not node_id.strip():
+            return {"success": False, "error": "A record id is required.", "error_code": "validation", "mode": self.mode}
+        node_id = node_id.strip()
+
+        try:
+            found = self.graph.query(
+                "MATCH (n {id: $id}) RETURN labels(n) AS labels",
+                {"id": node_id},
+            )
+            result_set = getattr(found, "result_set", None) or []
+            if not result_set:
+                return {
+                    "success": False,
+                    "error": f"No record with id '{node_id}' was found.",
+                    "error_code": "not_found",
+                    "mode": self.mode,
+                }
+            node_labels = result_set[0][0] or []
+            if not any(lbl in RECORD_LABELS for lbl in node_labels):
+                return {
+                    "success": False,
+                    "error": f"Record '{node_id}' is not a deletable record type.",
+                    "error_code": "validation",
+                    "mode": self.mode,
+                }
+
+            self.graph.query(
+                "MATCH (n {id: $id}) DETACH DELETE n",
+                {"id": node_id},
+            )
+        except Exception as exc:
+            logger.error(f"Error deleting record {node_id}: {exc}")
+            return {"success": False, "error": f"Database write failed: {exc}", "mode": self.mode}
+
+        return {
+            "success": True,
+            "deleted_id": node_id,
+            "mode": "live",
+            "graph_name": self.graph_name,
         }
 
 

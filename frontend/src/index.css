@@ -2608,6 +2608,23 @@ textarea.db-form-input {
   color: #FF5C5C;
 }
 
+.spin {
+  animation: orgmind-spin 0.8s linear infinite;
+}
+
+@keyframes orgmind-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.project-pill-empty {
+  font-size: 0.7rem;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+  padding: 0 8px;
+  align-self: center;
+  white-space: nowrap;
+}
+
 /* ==========================================================================
    Graph Nodes (scratch-cube-node) — used by CustomNode on the graph canvas
    NOTE: dimensions here must stay in sync with NODE_WIDTH / NODE_HEIGHT in
@@ -4113,3 +4130,126 @@ button.cube-crumb:hover {
   }
 }
 
+/* Lock-In — cube rotation control panel */
+.cube-lockin-panel {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 25;
+  width: 190px;
+  padding: 12px;
+  color: #dedede;
+  background: rgba(10, 10, 12, .94);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px;
+  font-size: 11px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.3);
+  backdrop-filter: blur(12px);
+}
+.cube-lockin-panel.is-locked { border-color: #d71921; }
+.cube-lockin-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+.cube-lockin-icon { color: #d71921; font-size: 17px; }
+.cube-lockin-sphere {
+  display: grid;
+  place-items: center;
+  padding: 9px 0 3px;
+}
+.cube-lockin-sphere svg { max-width: 100%; overflow: visible; }
+.cube-lockin-readout {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  color: #b8b8bd;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.cube-lockin-readout-sep { color: #d71921; }
+.cube-lockin-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+}
+.cube-lockin-slider-label {
+  color: #888890;
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+.cube-lockin-slider { flex: 1; min-width: 0; accent-color: #d71921; }
+.cube-lockin-slider-value {
+  min-width: 28px;
+  text-align: right;
+  color: #c9c9ce;
+}
+.cube-lockin-buttons { display: flex; gap: 5px; margin-top: 12px; }
+.cube-lockin-btn {
+  display: inline-flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 29px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 7px;
+  color: #bdbdc3;
+  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+.cube-lockin-btn:hover,
+.cube-lockin-btn.is-active {
+  color: white;
+  background: rgba(215,25,33,.13);
+  border-color: rgba(215,25,33,.7);
+}
+.cube-lockin-btn-primary { flex: 1.7; }
+.cube-lockin-footer {
+  margin-top: 10px;
+  color: #777780;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: .15em;
+}
+@media (max-width: 600px) {
+  .cube-lockin-panel {
+    top: 10px;
+    right: 10px;
+    width: 164px;
+    padding: 9px;
+  }
+  .cube-lockin-sphere svg { width: 78px; height: 78px; }
+}
+
+
+/* Lock-In panel placement correction */
+.cube-lockin-panel {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  left: auto;
+  transform: translateY(-50%);
+  max-height: calc(100% - 100px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .cube-lockin-panel {
+    top: 50%;
+    right: 8px;
+    width: 164px;
+    max-width: calc(100% - 16px);
+    max-height: calc(100% - 80px);
+  }
+}
